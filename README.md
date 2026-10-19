@@ -57,6 +57,34 @@ Os dois se conectam automaticamente pelo PeerJS (id fixo `phone-ocr`).
 > considere torná-los únicos/aleatórios para evitar que outra pessoa conecte no
 > mesmo canal.
 
+## Testes
+
+A suíte cobre a lógica de ponta a ponta **sem reescrever nada**: os testes
+carregam `viewer.html`, `viewer.js` e o script do `phone.html` reais dentro de um
+jsdom, controlando só as fronteiras externas (PeerJS, `fetch` das APIs,
+clipboard e relógio). Serve de rede de segurança para a refatoração.
+
+```bash
+npm install                 # só jsdom (dev)
+npm test                    # node:test  → viewer + celular
+npm run test:py             # unittest   → api.py
+python3 tests/sanity.py     # quebra o código de propósito e exige que os testes falhem
+```
+
+| Arquivo | O que valida |
+|---|---|
+| `tests/viewer.core.test.js` | CNPJ, limpeza de XML, datas, layout da chave de 44 dígitos |
+| `tests/viewer.api.test.js` | produtos do XML, fallback, timeout de 15s, fornecedor |
+| `tests/viewer.scan.test.js` | processamento, deduplicação, erros, limpeza/reset |
+| `tests/viewer.queue.test.js` | fila de 1s entre consultas e auto-exclusão de 15s |
+| `tests/viewer.ui.test.js` | cards por estado, seleção, inputs e a linha da planilha |
+| `tests/phone.ocr.test.js` | câmera, recorte da área verde, extração da chave, envio |
+| `tests/test_api_cli.py` | validação de CLI e filtro CDP do `api.py` |
+
+Quatro testes ficam **`skip` de propósito**: codificam a intenção de bugs já
+conhecidos que a refatoração precisa corrigir (ver `incrementalPlan.md`).
+Não apague — desative o `skip` quando o bug for corrigido.
+
 ## APIs consumidas (via proxy Nginx)
 
 O `viewer.js` chama os endpoints abaixo, todos resolvidos pelo Nginx (ver `deploy/`):
