@@ -1,21 +1,13 @@
+// GERADO POR tools/build.js — NÃO EDITAR A MÃO: fonte em src/viewer/
+
+// ===== src/viewer/config.js =====
 // ============================================================================
-// viewer.js — painel de leitura de NF-e (única unidade executável, exigido
-// pela suíte de testes: o harness faz eval deste arquivo inteiro).
+// src/viewer/config.js — constantes de serviços e timings
 //
-// Estrutura interna em módulos:
-//   1. CONFIG    — constantes de serviços e timings
-//   2. DOM       — referências aos elementos da página
-//   3. ESTADO    — dados mutáveis do app
-//   4. UTILS     — CNPJ, XML, datas, status e linha de planilha
-//   5. API       — consulta do XML (primária + fallback) e da receita
-//   6. DOMÍNIO   — ciclo de vida do scan e da linha da planilha
-//   7. RENDER    — montagem dos cards e atualização da tela
-//   8. EVENTOS   — listeners de clique, input, reset e tick do relógio
-//   9. BOOT      — conexão PeerJS com o celular
+// O prazo de auto-exclusão de card de erro usa o literal completo no ponto de
+// uso (em domain.js): tests/sanity.py depende desse trecho exato para validar
+// a suíte (não extrair constante nem mover para outro módulo).
 // ============================================================================
-
-
-// ===== 1. CONFIG ============================================================
 
 const API_NFE_URL = 'https://dtgames.myddns.me/api/nfe/';
 const API_NFE_FALLBACK_URL = 'https://dtgames.myddns.me/api/nfe/fallback/';
@@ -23,15 +15,14 @@ const API_RECEITA_URL = 'https://dtgames.myddns.me/receita/v1/cnpj/';
 
 const TIMEOUT_CONSULTA_MS = 15000;        // teto da API primária antes de cair no fallback
 const INTERVALO_ENTRE_NOTAS_MS = 1000;    // ritmo anti-429 entre consultas
-const TTL_CARD_ERRO_MS = 15000;           // vida de um card de erro (ver nota abaixo)
+const TTL_CARD_ERRO_MS = 15000;           // vida de um card de erro (timer de remoção)
 
-// O prazo de auto-exclusão de card de erro usa o literal completo no ponto de
-// uso: tests/sanity.py depende desse trecho exato para validar a suíte (não
-// extrair constante nem mover para outra função).
 const TEXTO_ESTADO_VAZIO = 'As notas recebidas aparecem na lista lateral. Ao selecionar uma, o card completo abre aqui.';
 
-
-// ===== 2. DOM ===============================================================
+// ===== src/viewer/dom.js =====
+// ============================================================================
+// src/viewer/dom.js — referências aos elementos da página
+// ============================================================================
 
 const status = document.getElementById('status');
 const loading = document.getElementById('loading');
@@ -41,8 +32,10 @@ const detailView = document.getElementById('detail-view');
 const detailSubtitle = document.getElementById('detail-subtitle');
 const scanCount = document.getElementById('scan-count');
 
-
-// ===== 3. ESTADO ============================================================
+// ===== src/viewer/state.js =====
+// ============================================================================
+// src/viewer/state.js — dados mutáveis do app
+// ============================================================================
 
 let pendingScans = [];
 let tabelaProdutos = [];
@@ -50,8 +43,10 @@ let isProcessing = false;
 let scans = [];
 let selectedScanId = null;
 
-
-// ===== 4. UTILS =============================================================
+// ===== src/viewer/utils.js =====
+// ============================================================================
+// src/viewer/utils.js — CNPJ, XML, datas, status e linha de planilha
+// ============================================================================
 
 function validarCNPJ(cnpj) {
   const limpo = String(cnpj || '').replace(/\D/g, '');
@@ -132,8 +127,10 @@ function montarLinhaPlanilha(item) {
   ].join('\t');
 }
 
-
-// ===== 5. API ===============================================================
+// ===== src/viewer/api.js =====
+// ============================================================================
+// src/viewer/api.js — consulta do XML da nota (primária + fallback) e do CNPJ
+// ============================================================================
 
 /** API primária: devolve o XML em base64 (timeout e erro acionam o fallback). */
 async function obterXMLPrimaria(chaveacesso) {
@@ -244,8 +241,10 @@ async function buscarFornecedor(cnpj) {
   return dados?.nome || '';
 }
 
-
-// ===== 6. DOMÍNIO ===========================================================
+// ===== src/viewer/domain.js =====
+// ============================================================================
+// src/viewer/domain.js — ciclo de vida do scan e da linha da planilha
+// ============================================================================
 
 function criarScan(chave) {
   const scan = {
@@ -270,7 +269,8 @@ function criarScan(chave) {
 
 
 function agendarExclusao(scan) {
-  // Card de erro vive 15s (literal do TTL é referência da mutação do sanity).
+  // Card de erro vive 15s (literal do prazo é a referência da mutação do sanity;
+  // o tempo do TIMER já vem da constante TTL_CARD_ERRO_MS em config.js).
   scan.deleteAt = Date.now() + 15000;
   if (scan.deleteTimer) clearTimeout(scan.deleteTimer);
 
@@ -397,8 +397,10 @@ function resetState() {
   renderUI();
 }
 
-
-// ===== 7. RENDER ============================================================
+// ===== src/viewer/render.js =====
+// ============================================================================
+// src/viewer/render.js — montagem dos cards e atualização da tela
+// ============================================================================
 
 /** Cabeçalho comum aos três estados do card (chave + selo de status). */
 function cabecalhoCard(scan) {
@@ -540,8 +542,10 @@ function renderUI() {
   renderDetalhe();
 }
 
-
-// ===== 8. EVENTOS ===========================================================
+// ===== src/viewer/events.js =====
+// ============================================================================
+// src/viewer/events.js — listeners de clique, input, reset e tick do relógio
+// ============================================================================
 
 cardList.addEventListener('click', (e) => {
   // Ignora cliques no botão de apagar para não selecionar o card acidentalmente
@@ -601,8 +605,10 @@ setInterval(() => {
   if (scans.some(scan => scan.deleteAt)) renderUI();
 }, 1000);
 
-
-// ===== 9. BOOT ==============================================================
+// ===== src/viewer/boot.js =====
+// ============================================================================
+// src/viewer/boot.js — conexão PeerJS com o celular (id fixo "phone-ocr")
+// ============================================================================
 
 const peer = new Peer();
 

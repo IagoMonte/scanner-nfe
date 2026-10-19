@@ -33,9 +33,16 @@ executam o código **como está** (sem reescrever a lógica para "testável").
   - Comentário do timeout da API primária corrigido (dizia 30s, código usa 15s) — plano concatem.
   - Markup, mensagens, fluxo e timings byte-idênticos: `npm test` (57/4 skip), `test:py` (5 OK)
     e `tests/sanity.py` (8/8 mutações detectadas) verdes após o refactor.
+- [x] Modularização REAL: fonte em `src/viewer/*.js` (9 módulos) e `src/phone/`
+  (template + script), `tools/build.js` zero-dep concatenando nos artefatos
+  (`viewer.js`, `phone.html`) com validação do contrato da suíte no build.
+  `package.json` ganhou `build`; `npm test` roda build antes. `api.py` segue em
+  arquivo único (nativo + literal pinado in-file). `tests/` intocado. Verificado:
+  `npm test` (57/4 skip), `test:py` (5 OK), `tests/sanity.py` (8/8) e screenshots
+  de viewer/phone gerados pelos artefatos.
 
 ## Próxima tarefa
-1. Corrigir os 4 bugs marcados com `test.skip` e desativar os skips.
+1. Corrigir os 4 bugs marcados com `test.skip` e desativar os skips (agora em `src/`).
 
 ## Backlog — bugs conhecidos encontrados ao escrever os testes
 1. **`indexTabela` vira órfão** ao apagar uma nota: `tabelaProdutos` é filtrada
@@ -76,5 +83,7 @@ executam o código **como está** (sem reescrever a lógica para "testável").
   literais em comentários/texto (custou um FALHA DA SANIDADE que a suíte não pegou).
   Literais que precisam aparecer 1x: os 6 de viewer.js, `text.match(/\d{44}/)` em
   phone.html, `http_method == "PUT"` em api.py.
-- Refac modular de arquivo único é admitido: banner de seções + helpers pequenos, sem
-  quebrar nomes/exportações da suíte.
+- Modularização real adotada: `src/` com módulos por arquivo (scripts puros, sem
+  import/export — módulos ESM/bundler quebrariam o eval do harness e o sanity) +
+  `tools/build.js` concatenando nos artefatos e validando os literais do contrato
+  no próprio build (falha alto). `tools/build.js` é a lista de ordem dos módulos.
