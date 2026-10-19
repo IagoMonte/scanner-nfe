@@ -53,8 +53,27 @@ executam o código **como está** (sem reescrever a lógica para "testável").
     pelo fluxo do modal. Suíte: **70 testes — 66 pass, 0 fail, 4 skip intencionais**,
     sanity 8/8. Screenshots do modal/erro/PIN no phone verificados (visual.md).
 
+- [x] Busca manual de chave no viewer (digitada, sem celular)
+  - Campo `#manual-key` no topo do painel **Notas** (input largura total + botão "Buscar"
+    abaixo, erro `#manual-error` reusando `.error-box`) e link "ou buscar chave manualmente"
+    no modal do PIN (`#manual-skip`) que libera a tela **sem tocar no peer**.
+  - `buscarChaveManual()` (domain.js) normaliza para dígitos, exige 44, barra duplicata em
+    `scans` **e** `pendingScans` (aviso + foco no card existente) e enfileira em
+    `pendingScans` + `processNextScan()` — MESMO pipeline do celular, sem caminho paralelo.
+  - Conflito com o `visual.md` resolvido (Rule 5): a regra "modal bloqueado sem nada a fazer
+    sem conexão" passou a ter a saída da busca manual; spec nova em visual.md.
+  - TDD: `tests/viewer.manual.test.js` (8 novos, red confirmado antes). Suíte:
+    **78 testes — 74 pass, 0 fail, 4 skip intencionais**; `test:py` 5 OK; sanity 8/8.
+  - UI verificada no Chromium (44 dígitos cabem sem scroll com Satoshi; botão/erro sem
+    overflow) e em produção (`dtgames.myddns.me`) após deploy — avisos de formato e
+    duplicata funcionando no ar.
+  - **Bug de backend exposto (fora do escopo):** a consulta de XML falha em produção —
+    `POST /api/nfe/` → 400 e fallback → **401** (provável `x-api-key` do
+    `/etc/nginx/secrets/danferapida.key.conf`); `GET /receita/` responde 200.
+
 ## Próxima tarefa
 1. Corrigir os 4 bugs marcados com `test.skip` e desativar os skips (agora em `src/`).
+2. **Novo:** investigar o 401 do fallback do XML em produção (`POST /api/nfe/` 400).
 
 ## Backlog — bugs conhecidos encontrados ao escrever os testes
 1. **`indexTabela` vira órfão** ao apagar uma nota: `tabelaProdutos` é filtrada

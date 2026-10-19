@@ -15,3 +15,9 @@ const pinModal = document.getElementById('pin-modal');
 const pinInput = document.getElementById('pin-input');
 const pinButton = document.getElementById('pin-btn');
 const pinError = document.getElementById('pin-error');
+
+// Busca manual de chave (topo do painel Notas) e saída do modal do PIN
+const manualInput = document.getElementById('manual-key');
+const manualButton = document.getElementById('manual-search-btn');
+const manualError = document.getElementById('manual-error');
+const manualSkip = document.getElementById('manual-skip');
