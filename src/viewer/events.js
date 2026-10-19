@@ -55,6 +55,13 @@ document.addEventListener('click', async (e) => {
 resetBtn.addEventListener('click', resetState);
 
 
+// Modal de PIN: botão Conectar e Enter no campo disparam a mesma tentativa.
+pinButton.addEventListener('click', tentarConectar);
+pinInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') tentarConectar();
+});
+
+
 // Tick visual da contagem "apaga em Xs" dos cards de erro
 setInterval(() => {
   if (scans.some(scan => scan.deleteAt)) renderUI();

@@ -35,7 +35,7 @@ test('fila processa uma nota por vez, com 1s de espera entre cada consulta', { t
   const app = criarApp();
 
   app.connect();
-  assert.equal(app.peer.state.connectedTo, 'phone-ocr', 'o viewer se conecta no id fixo do celular');
+  assert.equal(app.peer.state.connectedTo, '123456', 'o viewer conecta no PIN digitado no modal');
 
   // Três leituras chegam juntas: só a primeira pode consultar agora.
   app.emit({ type: 'nfe', key: CHAVE_UMA });

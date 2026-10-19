@@ -9,3 +9,9 @@ const cardList = document.getElementById('card-list');
 const detailView = document.getElementById('detail-view');
 const detailSubtitle = document.getElementById('detail-subtitle');
 const scanCount = document.getElementById('scan-count');
+
+// Modal de conexão por PIN
+const pinModal = document.getElementById('pin-modal');
+const pinInput = document.getElementById('pin-input');
+const pinButton = document.getElementById('pin-btn');
+const pinError = document.getElementById('pin-error');

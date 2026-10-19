@@ -148,6 +148,42 @@
       background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.24); color: #ffc1c1; border-radius: 14px; padding: 12px; font-size: .9rem;
     }
     .footer-note { color: var(--muted); font-size: .8rem; }
+    /* ---- Modal de conexão por PIN (backdrop com blur) ---- */
+    #pin-modal {
+      position: fixed; inset: 0; z-index: 50;
+      display: grid; place-items: center;
+      background: rgba(5,8,6,.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    #pin-modal[hidden] { display: none; }
+    .pin-card {
+      width: min(360px, 92vw);
+      padding: 22px;
+      display: grid; gap: 12px; text-align: center;
+      background: linear-gradient(180deg, rgba(19,33,25,.98), rgba(12,22,16,.98));
+      border: 1px solid var(--border); border-radius: 22px; box-shadow: var(--shadow);
+    }
+    .pin-card h1 { font-size: 1.05rem; margin: 0; }
+    #pin-input {
+      text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: .3em;
+      border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: #0b130f; color: var(--text); padding: 12px;
+    }
+    #pin-input:focus { border-color: rgba(34,197,94,.48); box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+    #pin-input::placeholder { color: rgba(159,181,165,.4); letter-spacing: .3em; }
+    .connect-btn {
+      border: none; cursor: pointer;
+      border-radius: 14px; padding: 12px; font-weight: 800; color: #06210f;
+      background: linear-gradient(180deg, var(--green), var(--green-2));
+    }
+    .connect-btn:hover { filter: brightness(1.08); }
+    .connect-btn:active { transform: scale(.99); }
+    #pin-error {
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.24); color: #ffc1c1;
+      border-radius: 12px; padding: 10px; margin: 0; font-size: .86rem;
+    }
+    #pin-error[hidden] { display: none; }
+    #pin-modal::backdrop { background: rgba(5,8,6,.55); }
     .loading-bar { height: 6px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.06); }
     .loading-bar span { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, var(--amber), #fcd34d); animation: slide 1.2s infinite ease-in-out; }
     @keyframes slide { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
@@ -204,6 +240,24 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- MODAL DE CONEXÃO POR PIN: bloqueado até digitar o PIN do celular -->
+  <div id="pin-modal">
+    <section class="pin-card">
+      <h1>Conectar no celular</h1>
+      <p>Digite o PIN que aparece na tela do celular que está lendo as chaves.</p>
+      <input
+        id="pin-input"
+        inputmode="numeric"
+        maxlength="6"
+        autocomplete="off"
+        placeholder="000000"
+        aria-label="PIN de conexão do celular"
+      />
+      <button id="pin-btn" class="connect-btn">Conectar</button>
+      <p id="pin-error" hidden></p>
+    </section>
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>

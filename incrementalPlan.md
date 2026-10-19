@@ -41,6 +41,18 @@ executam o código **como está** (sem reescrever a lógica para "testável").
   `npm test` (57/4 skip), `test:py` (5 OK), `tests/sanity.py` (8/8) e screenshots
   de viewer/phone gerados pelos artefatos.
 
+- [x] Conexão por PIN (anti-invasão de peer): celular gera PIN de 6 dígitos que
+  É o PeerID da sessão e o exibe na tela; colisão (`unavailable-id`) regenera.
+  Viewer conecta só pelo modal bloqueado com backdrop blur (`viewer.html`);
+  PIN inválido dá erro no modal, `peer-unavailable` reabre com aviso.
+  - `src/phone/script.js` (`novoPIN`/`iniciarPeer`), `src/phone/index.html` (caixa `#pin`),
+    `src/viewer/` (`dom.js` refs do modal, `boot.js` `tentarConectar`, `events.js` botão+Enter),
+    `viewer.html` (markup + CSS `#pin-modal`). Id fixo `phone-ocr` eliminado (risco resolvido).
+  - TDD: `tests/phone.pin.test.js` + `tests/viewer.pin.test.js` (9 novos, red
+    confirmado antes). Harness: PeerStub registra `peerIds`, `connect()` passa
+    pelo fluxo do modal. Suíte: **70 testes — 66 pass, 0 fail, 4 skip intencionais**,
+    sanity 8/8. Screenshots do modal/erro/PIN no phone verificados (visual.md).
+
 ## Próxima tarefa
 1. Corrigir os 4 bugs marcados com `test.skip` e desativar os skips (agora em `src/`).
 
@@ -62,7 +74,8 @@ executam o código **como está** (sem reescrever a lógica para "testável").
 ## Riscos / inconsistências a decidir na refac
 - Comentário diz "timeout de 30 segundos", código usa `15000` (15s) — alinhar.
 - Chave lida é **sem validação de DV**: só o CNPJ da chave é verificado.
-- PeerIDs fixos (`phone-ocr`) — já documentado no README.
+- PeerIDs fixos (`phone-ocr`) — **RESOLVIDO**: cada sessão agora usa PIN aleatório
+  de 6 dígitos como PeerID (ver item "Conexão por PIN" em Feito).
 - `limparXML(null)` lança (só `undefined` usa o default); hoje não acontece em produção.
 - Tratamento de erro por mensagem de texto (frágil): se a refac mudar a mensagem,
   ajuste os testes junto — eles são o contrato visível.

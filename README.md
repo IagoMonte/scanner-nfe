@@ -86,11 +86,9 @@ npx serve .
 ```
 
 Abra `viewer.html` no desktop e `phone.html` no celular (mesmo domínio/porta).
-Os dois se conectam automaticamente pelo PeerJS (id fixo `phone-ocr`).
-
-> **Atenção:** os PeerIDs são fixos (`phone-ocr`). Se você hospedar publicamente,
-> considere torná-los únicos/aleatórios para evitar que outra pessoa conecte no
-> mesmo canal.
+O celular gera um **PIN de 6 dígitos** (que é o PeerID da sessão) e o exibe na
+tela; no desktop, digite esse PIN no modal e clique **Conectar**. Sem o PIN,
+nenhuma conexão acontece — cada celular só aceita quem souber o seu PIN.
 
 ## Testes
 
