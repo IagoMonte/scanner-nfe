@@ -111,6 +111,7 @@ python3 tests/sanity.py     # quebra o código de propósito e exige que os test
 | `tests/viewer.scan.test.js` | processamento, deduplicação, erros, limpeza/reset |
 | `tests/viewer.queue.test.js` | fila de 1s entre consultas e auto-exclusão de 15s |
 | `tests/viewer.ui.test.js` | cards por estado, seleção, inputs e a linha da planilha |
+| `tests/viewer.manual.test.js` | busca manual da chave (formato, duplicata, sem celular) |
 | `tests/phone.ocr.test.js` | câmera, recorte da área verde, extração da chave, envio |
 | `tests/test_api_cli.py` | validação de CLI e filtro CDP do `api.py` |
 

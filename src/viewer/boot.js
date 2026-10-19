@@ -45,3 +45,10 @@ function tentarConectar() {
 
   pinModal.hidden = true;
 }
+
+// Modal: saída para a busca manual — libera a tela SEM conectar no celular
+// (nenhum peer é tocado; o status segue "conectando..." até digitar um PIN).
+function pularParaBuscaManual() {
+  pinModal.hidden = true;
+  manualInput.focus();
+}

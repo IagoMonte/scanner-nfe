@@ -61,6 +61,13 @@ pinInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') tentarConectar();
 });
 
+// Busca manual: botão, Enter no campo e o link de pular o modal do PIN.
+manualButton.addEventListener('click', buscarChaveManual);
+manualInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') buscarChaveManual();
+});
+manualSkip.addEventListener('click', pularParaBuscaManual);
+
 
 // Tick visual da contagem "apaga em Xs" dos cards de erro
 setInterval(() => {

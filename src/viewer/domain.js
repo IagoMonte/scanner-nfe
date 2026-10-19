@@ -120,6 +120,41 @@ async function processNextScan() {
 }
 
 
+/**
+ * Busca manual: o campo do painel enfileira a chave no MESMO pipeline da
+ * leitura do celular (fila serial, dedup, cards) — sem caminho paralelo de
+ * consulta. No automático o dedup é silencioso (ok); na busca manual o
+ * silêncio parece bug, então formato errado e duplicata avisam em vermelho
+ * no campo, e a duplicata leva o foco ao card já existente.
+ */
+function buscarChaveManual() {
+  const chave = manualInput.value.replace(/\D/g, '');
+
+  if (chave.length !== 44) {
+    manualError.innerText = 'A chave deve ter 44 dígitos.';
+    manualError.hidden = false;
+    return;
+  }
+
+  const repetida = scans.some(s => s.key === chave) || pendingScans.some(s => s.key === chave);
+  if (repetida) {
+    manualError.innerText = 'Chave já está na lista.';
+    manualError.hidden = false;
+    const scanExistente = scans.find(s => s.key === chave);
+    if (scanExistente) {
+      selectedScanId = scanExistente.id;
+      renderUI();
+    }
+    return;
+  }
+
+  manualError.hidden = true;
+  manualInput.value = '';
+  pendingScans.push({ type: 'nfe', key: chave });
+  processNextScan();
+}
+
+
 function removerScan(scanId) {
   const index = scans.findIndex(item => item.id === scanId);
   if (index !== -1) {

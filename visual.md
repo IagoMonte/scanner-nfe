@@ -38,9 +38,19 @@
 - Overlay: `position: fixed; inset: 0; display: grid; place-items: center; z-index alto.`,
   fundo `rgba(5,8,6,.55)` + **`backdrop-filter: blur(10px)`** (com `-webkit-`) para esconder o fundo.
 - Card: mesma receita dos painéis (gradiente de surface + borda `--border` + `--shadow` + radius 22px), largura `min(360px, 92vw)`.
-- Conteúdo: título, subtítulo em `--muted`, input centralizado do PIN (font-size grande, peso 900, letter-spacing largo, estilo de input do tema), botão primário verde de 12px radius, caixa de erro vermelha (mesma receita de `.error-box`).
-- Segurança: modal **bloqueado** até conectar (sem botão fechar) — não há nada a fazer sem conexão.
+- Conteúdo: título, subtítulo em `--muted`, input centralizado do PIN (font-size grande, peso 900, letter-spacing largo, estilo de input do tema), botão primário verde de 12px radius, caixa de erro vermelha (mesma receita de `.error-box`), link discreto "ou buscar chave manualmente".
+- Segurança: modal **bloqueado** até conectar ou pular para a busca manual (sem botão fechar). O pular (link) **não toca no peer** — só esconde o modal e foca o campo; status segue "conectando...".
 - Erros: PIN fora do formato (6 dígitos numéricos) e `peer-unavailable` (PIN errado/celular ausente) exibidos em vermelho dentro do modal; modal volta a ficar visível no `peer-unavailable`.
+
+## Busca manual de chave (viewer) — spec
+
+- Local: topo do painel **Notas** (`.list-panel`), entre o cabeçalho e a lista de cards — o resultado (card novo) nasce no mesmo painel, perto do campo.
+- Layout: grid `gap: 8px`, **input em uma linha (largura total)** e botão "Buscar" abaixo em largura total — os 44 dígitos precisam caber sem scroll no painel de 330px.
+- Input: receita do tema (fundo `#0b130f`, borda `rgba(255,255,255,.08)`, radius 12px, foco verde) com `font-size: .65rem` e padding horizontal 10px para os 44 dígitos caberem sem scroll no painel de 330px (container com 10px lateral, alinhado aos cards); `inputmode="numeric"`.
+- Botão "Buscar": mesma receita do botão primário (gradiente verde, texto `#d6ffe4`, radius 12px, peso 800, hover com `brightness(1.08)`).
+- Erro inline: `<p>` reusando a classe **`.error-box`** existente (zero CSS novo), `hidden` por padrão. Mensagens: formato → `A chave deve ter 44 dígitos.`; duplicata → `Chave já está na lista.`
+- `.list-panel` passa a `grid-template-rows: auto auto 1fr` (cabeçalho + busca + lista); `.detail-panel` inalterado.
+- Link do modal: sem borda/fundo, `--muted`, sublinhado, `.86rem`, `cursor: pointer`; hover clareia para `--text`.
 
 ## Regras gerais
 - Nada de universos visuais novos: reusar paleta/borda/radius existentes de cada lado.

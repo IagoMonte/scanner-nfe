@@ -83,6 +83,7 @@
       gap: 14px;
     }
     .list-panel, .detail-panel { min-height: 0; display: grid; grid-template-rows: auto 1fr; }
+    .list-panel { grid-template-rows: auto auto 1fr; }
     .pane-head { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
     .count-badge {
       padding: 6px 10px; border-radius: 999px; font-size: .74rem; font-weight: 800; color: #b8f5c8;
@@ -108,6 +109,21 @@
       font-size: .76rem; color: var(--muted); word-break: break-all; background: rgba(255,255,255,.03);
       border-radius: 12px; padding: 9px 10px; border: 1px solid rgba(255,255,255,.05);
     }
+    /* ---- Busca manual de chave (topo do painel Notas) ---- */
+    .manual-search {
+      padding: 12px 10px; display: grid; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    /* padding horizontal enxuto para os 44 dígitos caberem sem scroll no painel de 330px */
+    .manual-key { font-size: .65rem; padding-left: 10px; padding-right: 10px; }
+    .manual-search-btn {
+      cursor: pointer;
+      border-radius: 12px; padding: 10px; font-weight: 800; color: #d6ffe4;
+      border: 1px solid rgba(34,197,94,.24);
+      background: linear-gradient(180deg, rgba(34,197,94,.18), rgba(22,163,74,.16));
+    }
+    .manual-search-btn:hover { filter: brightness(1.08); }
+    .manual-search-btn:active { transform: scale(.99); }
     .timer { color: #ffb4b4; font-size: .76rem; font-weight: 700; }
     .detail-body { min-height: 0; overflow: auto; padding: 14px; }
     .empty-state {
@@ -183,6 +199,11 @@
       border-radius: 12px; padding: 10px; margin: 0; font-size: .86rem;
     }
     #pin-error[hidden] { display: none; }
+    .pin-skip {
+      border: none; background: none; padding: 4px; cursor: pointer;
+      color: var(--muted); font-size: .86rem; text-decoration: underline;
+    }
+    .pin-skip:hover { color: var(--text); }
     #pin-modal::backdrop { background: rgba(5,8,6,.55); }
     .loading-bar { height: 6px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.06); }
     .loading-bar span { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, var(--amber), #fcd34d); animation: slide 1.2s infinite ease-in-out; }
@@ -225,6 +246,18 @@
           </div>
           <span class="count-badge" id="scan-count">0</span>
         </div>
+        <div class="manual-search">
+          <input
+            id="manual-key"
+            class="manual-key"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="Chave de acesso (44 dígitos)"
+            aria-label="Chave de acesso da NF-e para busca manual"
+          />
+          <button id="manual-search-btn" class="manual-search-btn">Buscar</button>
+          <p id="manual-error" class="error-box" hidden></p>
+        </div>
         <div id="card-list" class="card-list"></div>
       </section>
 
@@ -257,6 +290,7 @@
       />
       <button id="pin-btn" class="connect-btn">Conectar</button>
       <p id="pin-error" hidden></p>
+      <button id="manual-skip" class="pin-skip" type="button">ou buscar chave manualmente</button>
     </section>
   </div>
 
