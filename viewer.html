@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leitor NF-e</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07110b;
+      --surface: #0d1812;
+      --surface-2: #132119;
+      --surface-3: #182a20;
+      --border: rgba(255,255,255,.08);
+      --text: #eaf6ee;
+      --muted: #9fb5a5;
+      --green: #22c55e;
+      --green-2: #16a34a;
+      --red: #ef4444;
+      --red-2: #b91c1c;
+      --amber: #f59e0b;
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body {
+      font-family: 'Satoshi', system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(34,197,94,.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(239,68,68,.12), transparent 30%),
+        linear-gradient(180deg, #08100b, #050806 70%);
+      color: var(--text);
+    }
+    button, input { font: inherit; }
+    .app {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      padding: 14px;
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: 1.6fr .8fr auto;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-height: 0;
+    }
+    .hero, .status-wrap { padding: 16px 18px; }
+    .hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; gap: 14px; align-items: center; }
+    .logo {
+      width: 46px; height: 46px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(34,197,94,.24), rgba(239,68,68,.24));
+      border: 1px solid rgba(255,255,255,.08);
+      display: grid; place-items: center; font-weight: 900;
+    }
+    h1 { font-size: 1.05rem; margin: 0 0 4px; }
+    p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .status-wrap { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 8px; width: fit-content;
+      background: rgba(34,197,94,.1); color: #b8f5c8; border: 1px solid rgba(34,197,94,.24);
+      padding: 8px 12px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .78rem;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 14px rgba(34,197,94,.8); }
+    .reset-btn {
+      border: 1px solid rgba(239,68,68,.25);
+      background: linear-gradient(180deg, rgba(239,68,68,.18), rgba(185,28,28,.16));
+      color: #ffd4d4; border-radius: 16px; padding: 0 18px; font-weight: 800; min-width: 128px;
+    }
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 330px 1fr;
+      gap: 14px;
+    }
+    .list-panel, .detail-panel { min-height: 0; display: grid; grid-template-rows: auto 1fr; }
+    .pane-head { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .count-badge {
+      padding: 6px 10px; border-radius: 999px; font-size: .74rem; font-weight: 800; color: #b8f5c8;
+      background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.22);
+    }
+    .card-list {
+      min-height: 0; overflow: auto; padding: 10px; display: grid; gap: 10px;
+    }
+    .card-list::-webkit-scrollbar, .detail-body::-webkit-scrollbar, .products::-webkit-scrollbar { width: 6px; }
+    .card-list::-webkit-scrollbar-thumb, .detail-body::-webkit-scrollbar-thumb, .products::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 99px; }
+    .list-item {
+      border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.03); color: inherit;
+      border-radius: 16px; padding: 12px; text-align: left; cursor: pointer; display: grid; gap: 8px;
+    }
+    .list-item.active { border-color: rgba(34,197,94,.34); background: rgba(34,197,94,.08); }
+    .list-item.error { border-color: rgba(239,68,68,.28); }
+    .list-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .mini-tag { padding: 6px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; border: 1px solid transparent; }
+    .mini-tag.ok { background: rgba(34,197,94,.12); color: #b8f5c8; border-color: rgba(34,197,94,.28); }
+    .mini-tag.err { background: rgba(239,68,68,.12); color: #ffc1c1; border-color: rgba(239,68,68,.28); }
+    .mini-tag.wait { background: rgba(245,158,11,.12); color: #ffd79f; border-color: rgba(245,158,11,.28); }
+    .list-code, .code {
+      font-size: .76rem; color: var(--muted); word-break: break-all; background: rgba(255,255,255,.03);
+      border-radius: 12px; padding: 9px 10px; border: 1px solid rgba(255,255,255,.05);
+    }
+    .timer { color: #ffb4b4; font-size: .76rem; font-weight: 700; }
+    .detail-body { min-height: 0; overflow: auto; padding: 14px; }
+    .empty-state {
+      height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 24px;
+      border: 1px dashed rgba(255,255,255,.08); border-radius: 20px; background: rgba(255,255,255,.02);
+    }
+    .scan-card {
+      background: linear-gradient(180deg, rgba(19,33,25,.96), rgba(12,22,16,.96));
+      border: 1px solid var(--border); border-radius: 22px; padding: 16px;
+      display: grid; gap: 14px; min-height: 100%;
+    }
+    .scan-card.error { border-color: rgba(239,68,68,.38); box-shadow: inset 0 0 0 1px rgba(239,68,68,.12); }
+    .scan-card.success { border-color: rgba(34,197,94,.26); }
+    .scan-card.loading { border-color: rgba(245,158,11,.26); }
+    .card-top, .meta-row { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+    .meta { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .meta-box, .product-item {
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 14px; padding: 12px; min-width: 0;
+    }
+    .meta-box.wide { grid-column: 1 / -1; }
+    .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+    .value { font-size: .94rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+    .products { display: grid; gap: 10px; max-height: 100%; overflow: auto; }
+    .product-item { display: grid; gap: 10px; }
+    .product-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+    .product-name { font-weight: 800; font-size: .95rem; }
+    .qty { color: #b7e8c4; font-size: .84rem; }
+    .product-fields { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+    input {
+      width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: #0b130f; color: var(--text); padding: 10px 12px; outline: none;
+    }
+    input:focus { border-color: rgba(34,197,94,.48); box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+    .copy-btn {
+      border: 1px solid rgba(34,197,94,.24); background: linear-gradient(180deg, rgba(34,197,94,.18), rgba(22,163,74,.16));
+      color: #d6ffe4; border-radius: 12px; padding: 0 14px; font-weight: 800; white-space: nowrap;
+    }
+    .error-box {
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.24); color: #ffc1c1; border-radius: 14px; padding: 12px; font-size: .9rem;
+    }
+    .footer-note { color: var(--muted); font-size: .8rem; }
+    .loading-bar { height: 6px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.06); }
+    .loading-bar span { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, var(--amber), #fcd34d); animation: slide 1.2s infinite ease-in-out; }
+    @keyframes slide { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+    @media (max-width: 980px) {
+      .topbar, .workspace { grid-template-columns: 1fr; }
+      .reset-btn { min-height: 56px; }
+      .workspace { grid-template-rows: 240px 1fr; }
+      .product-fields { grid-template-columns: 1fr; }
+      .copy-btn { min-height: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <section class="panel hero">
+        <div class="brand">
+          <div class="logo">NF</div>
+          <div>
+            <h1>Leitura de NF-e em painel</h1>
+            <p>Lista lateral para escolher a nota e card aberto na área principal.</p>
+          </div>
+        </div>
+        <div class="footer-note">Excel por produto restaurado</div>
+      </section>
+      <section class="panel status-wrap">
+        <div class="status-pill"><span class="status-dot"></span><span id="status">conectando...</span></div>
+        <p id="loading">Aguardando leitura do dispositivo.</p>
+      </section>
+      <button id="reset-btn" class="reset-btn panel">Resetar</button>
+    </div>
+
+    <main class="workspace">
+      <section class="panel list-panel">
+        <div class="pane-head">
+          <div>
+            <h1 style="font-size:1rem;margin:0;">Notas</h1>
+            <p>Escolha um card na lista.</p>
+          </div>
+          <span class="count-badge" id="scan-count">0</span>
+        </div>
+        <div id="card-list" class="card-list"></div>
+      </section>
+
+      <section class="panel detail-panel">
+        <div class="pane-head">
+          <div>
+            <h1 style="font-size:1rem;margin:0;">Detalhes</h1>
+            <p id="detail-subtitle">Nenhuma nota selecionada.</p>
+          </div>
+        </div>
+        <div id="detail-view" class="detail-body">
+          <div class="empty-state">As notas recebidas aparecem na lista lateral. Ao selecionar uma, o card completo abre aqui.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="./viewer.js"></script>
+</body>
+</html>
