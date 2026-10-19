@@ -1,12 +1,35 @@
 // ============================================================================
-// src/viewer/boot.js — conexão PeerJS com o celular (id fixo "phone-ocr")
+// src/viewer/boot.js — conexão PeerJS com o celular via PIN
+//
+// O PIN digitado no modal É o PeerID da sessão do celular. O modal fica
+// bloqueado até o usuário digitar um PIN de 6 dígitos; sem ele, nenhuma
+// conexão parte do viewer (ninguém invade o peer do outro).
 // ============================================================================
 
 const peer = new Peer();
 
+// PIN não existe / celular fora do ar no momento da tentativa:
+// o modal volta com o aviso para um novo PIN.
+peer.on('error', (err) => {
+  if (err && err.type === 'peer-unavailable') {
+    pinError.innerText = 'PIN errado ou celular não encontrado.';
+    pinError.hidden = false;
+    pinModal.hidden = false;
+  }
+});
 
-peer.on('open', () => {
-  const conn = peer.connect('phone-ocr');
+function tentarConectar() {
+  const pin = pinInput.value.trim();
+
+  if (!/^\d{6}$/.test(pin)) {
+    pinError.innerText = 'O PIN tem 6 dígitos.';
+    pinError.hidden = false;
+    return;
+  }
+
+  pinError.hidden = true;
+
+  const conn = peer.connect(pin);
 
   conn.on('open', () => {
     status.innerText = 'conectado';
@@ -19,4 +42,6 @@ peer.on('open', () => {
       processNextScan();
     }
   });
-});
+
+  pinModal.hidden = true;
+}

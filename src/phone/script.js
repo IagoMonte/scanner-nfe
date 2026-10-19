@@ -1,13 +1,12 @@
 // ============================================================================
 // src/phone/script.js — leitor de chave por OCR no celular
 //
-// Módulos: DOM/CONEXÃO (PeerJS, o viewer conecta no id fixo "phone-ocr"),
+// Módulos: DOM/CONEXÃO (PeerJS com ID = PIN de 6 dígitos exibido na tela),
 // CÂMERA (traseira 1920x1080), CAPTURA (recorte da faixa + preview),
 // OCR (Tesseract, extração dos 44 dígitos e envio) e BOOT.
 // ============================================================================
 
-// ===== DOM / CONEXÃO =====
-const peer = new Peer("phone-ocr");
+// ===== DOM =====
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
@@ -16,13 +15,38 @@ const status = document.getElementById("status");
 const captureBtn = document.getElementById("captureBtn");
 const lastKey = document.getElementById("last-key");
 const preview = document.getElementById("preview");
+const pinEl = document.getElementById("pin");
+
+// ===== CONEXÃO =====
+// O PIN gerado aqui É o PeerID da sessão do celular: quem digitar esse número
+// no viewer conecta; quem não souber, não alcança este peer.
 
 let conn = null;
+let peer = null;
 
-peer.on("connection", connection => {
-    conn = connection;
-    status.innerText = "viewer conectado";
-});
+function novoPIN() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function iniciarPeer(pin) {
+    peer = new Peer(pin);
+
+    peer.on("connection", connection => {
+        conn = connection;
+        status.innerText = "viewer conectado";
+    });
+
+    // PIN já em uso por outro peer no servidor: gera outro e a tela atualiza.
+    peer.on("error", err => {
+        if (err && err.type === "unavailable-id") {
+            iniciarPeer(novoPIN());
+        }
+    });
+
+    pinEl.innerText = pin;
+}
+
+iniciarPeer(novoPIN());
 
 // ===== CÂMERA =====
 

@@ -78,10 +78,11 @@ function createClock(win) {
 
 /** Stub do PeerJS: registra handlers e permite disparar open/data manualmente. */
 function createPeerStub() {
-  const state = { created: 0, connectedTo: null, conn: null, sent: [], peerHandlers: {}, connHandlers: {} };
+  const state = { created: 0, peerIds: [], connectedTo: null, conn: null, sent: [], peerHandlers: {}, connHandlers: {} };
 
-  function PeerStub() {
+  function PeerStub(peerId) {
     state.created += 1;
+    state.peerIds.push(peerId);
     const peer = {
       on(event, cb) { (state.peerHandlers[event] ||= []).push(cb); },
       connect(peerId) {
@@ -214,9 +215,13 @@ function createViewerApp() {
     fetch: fetchStub,
     clipboard,
     alerts,
-    /** Abre o canal P2P como o viewer faz ao iniciar. */
-    connect() {
-      peer.emitPeer('open');
+    /** Abre o canal P2P como o viewer faz: modal → digita o PIN → Conectar → conn abre. */
+    connect(pin = '123456') {
+      const campo = doc.getElementById('pin-input');
+      campo.value = pin;
+      campo.dispatchEvent(new win.Event('input', { bubbles: true }));
+      const botao = doc.getElementById('pin-btn');
+      botao.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
       peer.emitConn('open');
     },
     /** Entrega um payload como se viesse do celular. */
@@ -315,7 +320,7 @@ function createPhoneApp() {
     camera,
     vibes,
     canvasState,
-    /** Simula o viewer conectando ao peer "phone-ocr". */
+    /** Simula o viewer conectando (conexão chega no peer do celular). */
     connectViewer() {
       const sent = [];
       peer.emitPeer('connection', { send: (payload) => sent.push(payload) });
