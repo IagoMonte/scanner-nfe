@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta 
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>OCR NF-e</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+
+</head>
+
+<body class="bg-black text-white min-h-screen flex flex-col items-center p-4 overflow-x-hidden">
+
+    <div class="w-full max-w-5xl flex flex-col gap-4">
+
+        <!-- HEADER -->
+        <div class="flex items-center justify-between gap-4">
+
+            <div>
+
+                <h1 class="text-3xl font-bold">
+                    Scanner NF-e
+                </h1>
+
+                <p class="text-zinc-400 mt-1">
+                    Centralize a chave de acesso na área verde
+                </p>
+
+            </div>
+
+            <div 
+                id="status"
+                class="bg-zinc-900 border border-zinc-700 px-4 py-2 rounded-xl text-sm whitespace-nowrap"
+            >
+                iniciando câmera...
+            </div>
+
+        </div>
+
+        <!-- PREVIEW OCR -->
+        <div class="w-full">
+
+            <h2 class="text-lg font-bold mb-2">
+                Preview OCR
+            </h2>
+
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
+
+                <img 
+                    id="preview"
+                    class="w-full rounded-xl"
+                >
+
+            </div>
+
+        </div>
+
+        <!-- CAMERA -->
+        <div class="relative w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
+
+            <video 
+                id="video"
+                autoplay
+                playsinline
+                muted
+                class="w-full bg-black"
+            ></video>
+
+            <!-- OVERLAY -->
+            <div class="absolute inset-0 pointer-events-none">
+
+                <!-- ESCURECIMENTO -->
+                <div class="absolute inset-0 bg-black/40"></div>
+
+                <!-- ÁREA OCR -->
+                <div 
+                    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] h-[90px] border-[5px] border-emerald-400 rounded-3xl shadow-[0_0_40px_rgba(52,211,153,0.9)]"
+                >
+
+                    <!-- TEXTO -->
+                    <div class="absolute -top-10 left-1/2 -translate-x-1/2">
+
+                        <div class="bg-emerald-400 text-black font-bold px-4 py-1 rounded-full text-sm shadow-lg">
+                            POSICIONE A CHAVE AQUI
+                        </div>
+
+                    </div>
+
+                    <!-- LINHA -->
+                    <div 
+                        class="absolute left-0 top-1/2 -translate-y-1/2 h-[3px] w-full bg-emerald-300 animate-pulse"
+                    ></div>
+
+                    <!-- CANTOS -->
+                    <div class="absolute -top-1 -left-1 w-10 h-10 border-l-4 border-t-4 border-emerald-300 rounded-tl-2xl"></div>
+
+                    <div class="absolute -top-1 -right-1 w-10 h-10 border-r-4 border-t-4 border-emerald-300 rounded-tr-2xl"></div>
+
+                    <div class="absolute -bottom-1 -left-1 w-10 h-10 border-l-4 border-b-4 border-emerald-300 rounded-bl-2xl"></div>
+
+                    <div class="absolute -bottom-1 -right-1 w-10 h-10 border-r-4 border-b-4 border-emerald-300 rounded-br-2xl"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- BOTÃO -->
+        <button
+            id="captureBtn"
+            class="bg-emerald-400 hover:bg-emerald-300 active:scale-[0.98] transition-all text-black font-bold text-xl py-5 rounded-2xl shadow-xl"
+        >
+            CAPTURAR CHAVE
+        </button>
+
+        <!-- ÚLTIMA CHAVE -->
+        <div 
+            id="last-key"
+            class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 break-all text-center text-lg text-emerald-300 min-h-[80px] flex items-center justify-center"
+        >
+            nenhuma chave lida
+        </div>
+
+    </div>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+
+        const peer =
+            new Peer("phone-ocr");
+
+        const video =
+            document.getElementById("video");
+
+        const canvas =
+            document.getElementById("canvas");
+
+        const ctx =
+            canvas.getContext("2d");
+
+        const status =
+            document.getElementById("status");
+
+        const captureBtn =
+            document.getElementById("captureBtn");
+
+        const lastKey =
+            document.getElementById("last-key");
+
+        const preview =
+            document.getElementById("preview");
+
+        let conn = null;
+
+        peer.on("connection", connection => {
+
+            conn = connection;
+
+            status.innerText =
+                "viewer conectado";
+        });
+
+        async function startCamera() {
+
+            try {
+
+                const stream =
+                    await navigator
+                        .mediaDevices
+                        .getUserMedia({
+
+                            video: {
+
+                                facingMode: {
+                                    ideal:"environment"
+                                },
+
+                                width: {
+                                    ideal: 1920
+                                },
+
+                                height: {
+                                    ideal: 1080
+                                },
+
+                                aspectRatio:
+                                    16 / 9
+                            },
+
+                            audio:false
+                        });
+
+                video.srcObject =
+                    stream;
+
+                status.innerText =
+                    "câmera pronta";
+
+            } catch (err) {
+
+                console.error(err);
+
+                status.innerText =
+                    "erro câmera";
+            }
+        }
+
+        function captureFrame() {
+
+            const vw =
+                video.videoWidth;
+
+            const vh =
+                video.videoHeight;
+
+            const cropWidth =
+                vw * 0.92;
+
+            const cropHeight =
+                90;
+
+            const cropX =
+                (vw - cropWidth) / 2;
+
+            const cropY =
+                (vh / 2) - 45;
+
+            canvas.width =
+                cropWidth;
+
+            canvas.height =
+                cropHeight;
+
+            ctx.drawImage(
+
+                video,
+
+                cropX,
+                cropY,
+                cropWidth,
+                cropHeight,
+
+                0,
+                0,
+                cropWidth,
+                cropHeight
+            );
+
+            preprocess();
+        }
+
+        // SEM PREPROCESS
+        function preprocess() {
+
+            preview.src =
+                canvas.toDataURL(
+                    "image/png"
+                );
+        }
+
+        async function processOCR() {
+
+            if (!conn) {
+
+                alert(
+                    "viewer não conectado"
+                );
+
+                return;
+            }
+
+            status.innerText =
+                "lendo chave...";
+
+            captureFrame();
+
+            try {
+
+                const result =
+                    await Tesseract.recognize(
+
+                        canvas,
+
+                        "eng",
+
+                        {
+
+                            tessedit_pageseg_mode:7,
+
+                            tessedit_char_whitelist:
+                                "0123456789",
+
+                            preserve_interword_spaces:0
+                        }
+                    );
+
+                let text =
+                    result.data.text;
+
+                console.log(text);
+
+                // limpa caracteres inválidos
+                text =
+                    text.replace(/\D/g, "");
+
+                // procura exatamente 44 dígitos
+                const match =
+                    text.match(/\d{44}/);
+
+                if (match) {
+
+                    const key =
+                        match[0];
+
+                    console.log(
+                        "CHAVE:",
+                        key
+                    );
+
+                    conn.send({
+
+                        type:"nfe",
+
+                        key,
+
+                        image:
+                            canvas.toDataURL(
+                                "image/jpeg",
+                                0.7
+                            )
+                    });
+
+                    lastKey.innerText =
+                        key;
+
+                    status.innerText =
+                        "chave enviada";
+
+                    navigator.vibrate?.(300);
+
+                } else {
+
+                    lastKey.innerText =
+                        text ||
+                        "nenhum número encontrado";
+
+                    status.innerText =
+                        `faltando dígitos (${text.length}/44)`;
+
+                    navigator.vibrate?.(100);
+
+                    console.log(
+                        "OCR INVÁLIDO:",
+                        text
+                    );
+                }
+
+            } catch (err) {
+
+                console.error(err);
+
+                status.innerText =
+                    "erro OCR";
+            }
+        }
+
+        captureBtn.onclick =
+            processOCR;
+
+        startCamera();
+
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,19 @@
+# Segredos (nunca versionar)
+deploy/secrets/*.conf
+!deploy/secrets/*.conf.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Backups / temporários
+*.bak
+*.tmp
+*.swp
+.DS_Store
+
+# Logs
+*.log
