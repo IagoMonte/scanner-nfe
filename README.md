@@ -28,14 +28,49 @@ O sistema tem duas páginas que se comunicam **P2P via PeerJS**:
 3. Para cada produto, o painel permite preencher **fabricação** e **validade (meses)**
    e gerar uma linha copiável no formato de planilha (separada por tab).
 
+## Estrutura do projeto (modular)
+
+O código-fonte vive em `src/`, organizado em módulos de arquivo único por
+responsabilidade. `tools/build.js` (sem dependências) gera os artefatos que o
+navegador e os testes consomem — `viewer.js` e `phone.html` são **gerados, não
+editar a mão** (o `api.py` fica em arquivo único Python, sem build).
+
+```
+src/viewer/          painel, um arquivo por responsabilidade:
+  config.js            URLs das APIs e timings
+  dom.js               referências aos elementos da página
+  state.js             dados mutáveis do app
+  utils.js             CNPJ, XML, datas, status, linha da planilha
+  api.js               consulta do XML (primária + fallback) e do CNPJ
+  domain.js            ciclo de vida do scan e da planilha
+  render.js            montagem dos cards e da tela
+  events.js            listeners (clique, input, reset, relógio)
+  boot.js              conexão PeerJS com o celular
+src/phone/
+  script.js            lógica do celular (câmera, recorte, OCR, envio)
+  index.html           marcação da página (template com {{SCRIPT}})
+tools/build.js       gera viewer.js e phone.html a partir de src/
+```
+
+```bash
+npm run build    # regenera viewer.js e phone.html (valida o contrato da suíte)
+npm test         # build + suíte JS
+```
+
+Os artefatos são mantidos versionados porque a hospedagem é estática (ver
+`deploy/`). O build falha alto se os nomes/literais que os testes consomem
+(`tests/helpers/harness.js` e `tests/sanity.py`) estiverem fora do contrato.
+
 ## Arquivos
 
 | Arquivo | Papel |
 |---|---|
-| `phone.html` | App do celular: câmera + OCR (Tesseract.js) + envio via PeerJS |
+| `src/` | Código-fonte modular (o que você edita) |
+| `phone.html` | **Gerado**: app do celular (câmera + OCR + envio via PeerJS) |
 | `viewer.html` | Painel do desktop (marcação + estilos) |
-| `viewer.js` | Lógica do painel: recebe chaves, consulta APIs, renderiza notas |
+| `viewer.js` | **Gerado**: lógica do painel (recebe chaves, consulta APIs, renderiza) |
 | `api.py` | Script auxiliar: consulta o meudanfe.com.br via chromedriver |
+| `tools/build.js` | Build zero-deps: concatena `src/` nos artefatos |
 | `deploy/` | Config do Nginx e instruções de implantação |
 
 ## Rodando localmente

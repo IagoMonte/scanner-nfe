@@ -4,7 +4,8 @@
   "private": true,
   "description": "Scanner de NF-e: OCR no celular + painel web (testes automatizados)",
   "scripts": {
-    "test": "node --test tests/",
+    "build": "node tools/build.js",
+    "test": "node tools/build.js && node --test tests/",
     "test:py": "python3 -m unittest discover -s tests -p 'test_*.py'"
   },
   "devDependencies": {
