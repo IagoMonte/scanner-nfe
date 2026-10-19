@@ -2,6 +2,9 @@
 deploy/secrets/*.conf
 !deploy/secrets/*.conf.example
 
+# Dependências de teste (Node)
+node_modules/
+
 # Python
 __pycache__/
 *.py[cod]
