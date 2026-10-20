@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "slug": "scanner-nfe",
+  "title": {
+    "pt": "Scanner NF-e"
+  },
+  "summary": {
+    "pt": "Scanner de nota fiscal que lê a chave de acesso com a câmera do celular via OCR, mostra fornecedor e produtos em um painel web e gera a linha de fabricação/validade pronta para a planilha."
+  },
+  "status": "live",
+  "category": {
+    "slug": "gestao",
+    "name": {
+      "pt": "gestão"
+    },
+    "tagline": {
+      "pt": "Ferramentas que organizam a operação do dia a dia: conferência, leitura e registro no mesmo painel."
+    },
+    "colors": [
+      "#22C55E",
+      "#07110B"
+    ],
+    "fx": "grid"
+  },
+  "stack": [
+    "JavaScript",
+    "Tesseract.js",
+    "PeerJS",
+    "Tailwind CSS",
+    "Node.js",
+    "Python",
+    "undetected-chromedriver",
+    "Nginx"
+  ],
+  "facts": {
+    "role": {
+      "pt": "Autor e desenvolvedor"
+    },
+    "period": {
+      "start": "2026-10",
+      "end": "atual"
+    },
+    "context": {
+      "pt": "projeto de trabalho"
+    }
+  },
+  "links": [
+    {
+      "kind": "repo",
+      "url": "https://github.com/IagoMonte/scanner-nfe"
+    }
+  ],
+  "thumbnail": "thumbnail.png",
+  "shots": [
+    {
+      "file": "shots/01-painel-notas.png",
+      "caption": {
+        "pt": "painel com a lista de notas lidas e o detalhe da nota selecionada"
+      },
+      "format": "desktop"
+    },
+    {
+      "file": "shots/02-linha-planilha.png",
+      "caption": {
+        "pt": "produtos com fabricação e validade preenchidos e a linha copiada para a planilha"
+      },
+      "format": "desktop"
+    },
+    {
+      "file": "shots/03-conexao-pin.png",
+      "caption": {
+        "pt": "conexão por PIN: modal bloqueado com o código de 6 dígitos gerado pelo celular"
+      },
+      "format": "desktop"
+    },
+    {
+      "file": "shots/04-celular-camera.png",
+      "caption": {
+        "pt": "app do celular com a área verde de OCR e o PIN de conexão"
+      },
+      "format": "mobile"
+    }
+  ],
+  "docs": [
+    {
+      "name": "README",
+      "file": "docs/readme.md"
+    },
+    {
+      "name": "ARQUITETURA",
+      "file": "docs/arquitetura.md"
+    },
+    {
+      "name": "CHANGELOG",
+      "file": "docs/changelog.md"
+    }
+  ]
+}
