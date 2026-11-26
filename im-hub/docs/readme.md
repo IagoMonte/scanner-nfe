@@ -4,83 +4,73 @@
 
 ## Visão geral
 
-Scanner de nota fiscal (NF-e) para o fluxo de **recebimento de mercadoria**: aponta
-o celular para a chave de acesso, o OCR lê os 44 dígitos e a nota aparece no
-painel do desktop para conferência — fornecedor, produtos, fabricação e validade —
-com a linha pronta para colar na planilha.
+Scanner de nota fiscal eletrônica para o **recebimento de mercadoria**. O celular
+lê a chave de acesso com a câmera, o painel no desktop busca fornecedor e produtos,
+e cada produto vira uma linha pronta para colar na planilha de controle.
 
-O sistema tem duas páginas que se comunicam **P2P via PeerJS**, sem backend
-próprio para o tráfego do scanner:
+## O problema
 
-1. **`phone.html`** — abre no celular, acessa a câmera, recorta a área da chave e
-   usa **Tesseract.js** para extrair os 44 dígitos.
-2. **`viewer.html`** — abre no desktop, recebe a chave via PeerJS, valida o CNPJ
-   embutido nela e consulta fornecedor e produtos por proxy do Nginx.
+Conferir uma NF-e na mão é lento: digitar 44 dígitos, abrir a consulta do DANFE,
+anotar fornecedor e produtos e ainda registrar fabricação e validade de cada item.
+Aqui a chave vem da câmera, os dados chegam prontos e sobra preencher só o que a
+nota não informa.
 
-## O problema que resolve
+## Fluxo de uso
 
-No recebimento, conferir uma NF-e na mão é lento: digitar a chave de 44 dígitos,
-abrir consulta de DANFE, anotar fornecedor e produtos, e ainda registrar
-fabricação e validade de cada item para a planilha de controle. Aqui a chave é
-lida pela câmera e a nota chega pronta no painel, e cada produto vira uma linha
-no formato exato da planilha com um clique.
+1. O celular abre o app e exibe um **PIN de 6 dígitos**.
+2. O desktop digita o PIN no painel e os dois se conectam.
+3. O operador alinha a chave na linha verde e toca em **Capturar chave**.
+4. A nota aparece no painel com CNPJ, número, fornecedor e produtos.
+5. Ele informa fabricação e validade e clica em **Gerar linha**.
+
+![linha do produto copiada](../shots/02-linha-planilha.png)
 
 ## O que foi construído
 
-- **Leitura por OCR no celular**: recorte da área verde, Tesseract.js e envio da
-  chave para o painel. Só sai da tela após a captura.
-- **Conexão por PIN**: o celular gera um PIN de 6 dígitos (que é o PeerID da
-  sessão) e o exibe na tela; o desktop digita esse PIN num modal bloqueado. Sem
-  o PIN, ninguém conecta no peer do outro.
-- **Painel de notas**: lista lateral com cartões por estado (lendo / válido /
-  erro), detalhe da nota com CNPJ, número da NF, fornecedor e produtos.
-- **Consulta da nota**: XML do DANFE pela API primária com fallback automático, e
-  nome do fornecedor pela ReceitaWS, ambos via proxy do Nginx (mesma origem).
-- **Linha da planilha**: por produto, campo de fabricação (data), validade em
-  meses e botão **Gerar linha**, que copia a linha tab-separada para o Excel.
-- **Busca manual de chave**: o desktop aceita a chave digitada, sem celular —
-  mesmo pipeline de consulta, fila, deduplicação e cartões.
-- **Cards de erro com auto-exclusão** de 15 s (dá para apagar antes) e ritmo de 1 s
-  entre consultas para não tomar 429.
-- **Suíte de testes**: 78 testes JS em jsdom que carregam os artefatos reais
-  (`viewer.html`, `viewer.js`, `phone.html`) com PeerJS, `fetch`, clipboard e
-  relógio controlados, mais testes de CLI do `api.py` e um `sanity.py` que muta o
-  código de propósito e exige que a suíte falhe.
+- **OCR no próprio celular** (Tesseract.js) sobre o recorte da faixa mirada, com
+  prévia do recorte e status colorido por estado.
+- **Conexão P2P por PIN**: o PIN é o identificador da sessão do celular, então o
+  painel só se liga ao aparelho cujo número foi digitado.
+- **Painel de notas** com cartões por estado (lendo, válido, erro) e detalhe da
+  nota selecionada.
+- **Consulta com fallback**: XML da nota por uma API primária e, se ela falhar ou
+  demorar mais de 15 s, por uma segunda. O nome do fornecedor vem da ReceitaWS.
+- **Linha da planilha** separada por tabulação: chave, produto, data de
+  recebimento, quantidade, fornecedor, fabricação, validade e número da NF.
+- **Busca manual** pela chave digitada, sem celular, no mesmo fluxo das leituras,
+  com aviso de formato inválido ou chave repetida.
+- **Erros tratados**: CNPJ inválido ou falha na consulta geram um cartão que se
+  apaga sozinho em 15 s.
+
+![busca manual e cartão de erro](../shots/03-busca-e-erros.png)
+
+## Qualidade
+
+- 81 testes JavaScript (77 passam e 4 ficam em `skip`, documentando bugs
+  conhecidos) executam as páginas reais em jsdom, simulando só PeerJS, `fetch`,
+  clipboard, câmera, OCR e relógio.
+- 5 testes Python cobrem o script auxiliar de consulta.
+- Um teste de mutação altera o código de propósito e exige que a suíte falhe.
 
 ## Como rodar
 
-As páginas usam `getUserMedia` (câmera) e conexões P2P, então precisam ser
-servidas por HTTPS ou `localhost`:
-
-```bash
-python3 -m http.server 8080
-# ou
-npx serve .
-```
-
-Abra `viewer.html` no desktop e `phone.html` no celular (mesmo domínio e porta).
-No celular, copie o PIN de 6 dígitos exibido na tela; no desktop, digite no modal
-e clique **Conectar**. Sem celular, use o link "ou buscar chave manualmente" e
-digite a chave de 44 dígitos.
-
 ```bash
 npm install       # só jsdom (dev)
-npm run build     # regenera viewer.js e phone.html a partir de src/
-npm test          # build + suíte JS
+npm run build     # gera viewer.js e phone.html a partir de src/
+npm test          # build + testes JavaScript
 npm run test:py   # testes do api.py
 ```
 
-`viewer.js` e `phone.html` são **gerados** por `tools/build.js` a partir de
-`src/` — não edite os artefatos à mão.
+As páginas são estáticas. A câmera exige HTTPS (ou `localhost`), e as consultas
+usam caminhos relativos: o site precisa ser servido junto com o proxy do Nginx
+(há um exemplo em `deploy/`). Em um servidor estático simples a conexão e a leitura
+funcionam, mas as consultas de nota e fornecedor não.
 
 ## Próximos passos
 
-- Corrigir os 4 bugs conhecidos marcados com `test.skip`: índice órfão ao apagar nota, inputs que perdem valor no
-  re-render, quebra de UTF-8 no `atob` da API primária e o OCR aceitando a
-  janela errada de dígitos.
-- Investigar o `401` do fallback do XML em produção (a API primária responde
-  `400`).
+- Corrigir os 4 bugs conhecidos: índice órfão ao apagar uma nota, campos que perdem
+  o valor quando a tela é redesenhada, acentos quebrados na API primária e OCR
+  escolhendo a janela errada de dígitos.
 - Validar o dígito verificador da chave (hoje só o CNPJ embutido é conferido).
 
-> Os prints usam dados de exemplo (fornecedores e produtos fictícios); nada de
-> nota ou cliente real nas imagens.
+> Os prints usam fornecedores, produtos e um documento fictícios.

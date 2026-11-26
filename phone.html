@@ -2,161 +2,176 @@
 <html lang="pt-BR">
 
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#08100b">
+  <title>OCR NF-e</title>
 
-    <meta charset="UTF-8">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 
-    <meta 
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+  <style>
+    /* Mesmos tokens do viewer.html (ver visual.md) */
+    :root {
+      --surface: #0d1812;
+      --border: rgba(255,255,255,.08);
+      --text: #eaf6ee;
+      --muted: #9fb5a5;
+      --green: #22c55e;
+      --green-2: #16a34a;
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { background: #050806; }
+    body {
+      margin: 0; min-height: 100dvh;
+      font-family: 'Satoshi', system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(34,197,94,.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(239,68,68,.12), transparent 30%),
+        linear-gradient(180deg, #08100b, #050806 70%);
+      color: var(--text);
+    }
+    button { font: inherit; }
+    .app {
+      max-width: 520px; min-height: 100dvh; margin: 0 auto; padding: 14px 14px 0;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .panel {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)),
+        var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    h1 { font-size: 1.05rem; margin: 0 0 4px; }
+    p { margin: 0; color: var(--muted); font-size: .86rem; }
+    .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 
-    <title>OCR NF-e</title>
+    /* ---- cabeçalho + status ---- */
+    .hero { padding: 14px; display: grid; gap: 12px; }
+    .brand { display: flex; gap: 14px; align-items: center; }
+    .logo {
+      flex: none; width: 46px; height: 46px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(34,197,94,.24), rgba(239,68,68,.24));
+      border: 1px solid var(--border);
+      display: grid; place-items: center; font-weight: 900;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 8px; width: fit-content;
+      padding: 8px 12px; border-radius: 999px; border: 1px solid transparent;
+      font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .78rem;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; box-shadow: 0 0 14px currentColor; }
+    .status-pill[data-tipo="ok"] { background: rgba(34,197,94,.1); color: #b8f5c8; border-color: rgba(34,197,94,.24); }
+    .status-pill[data-tipo="wait"] { background: rgba(245,158,11,.12); color: #ffd79f; border-color: rgba(245,158,11,.28); }
+    .status-pill[data-tipo="err"] { background: rgba(239,68,68,.12); color: #ffc1c1; border-color: rgba(239,68,68,.28); }
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    /* ---- PIN ---- */
+    .pin-panel { padding: 14px; display: grid; gap: 8px; text-align: center; border-color: rgba(34,197,94,.26); }
+    #pin {
+      font-size: 2.4rem; font-weight: 900; letter-spacing: .3em; padding: 6px 0 6px .3em;
+      font-variant-numeric: tabular-nums; color: var(--text);
+      background: #0b130f; border: 1px solid var(--border); border-radius: 14px;
+    }
 
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    /* ---- câmera ---- */
+    .camera { position: relative; overflow: hidden; line-height: 0; }
+    /* largura sempre 100% e corte só em cima/embaixo (câmera em retrato): o centro e a
+       largura continuam coincidindo com o recorte do OCR */
+    video { width: 100%; min-height: 140px; max-height: 36dvh; object-fit: cover; background: #0b130f; }
+    .overlay { position: absolute; inset: 0; pointer-events: none; }
+    .alvo {
+      position: absolute; left: 4%; width: 92%; top: calc(50% - 45px); height: 90px;
+      border: 2px solid rgba(34,197,94,.75); border-radius: 14px;
+      box-shadow: 0 0 0 100vmax rgba(5,8,6,.58), 0 0 24px rgba(34,197,94,.35);
+    }
+    .linha {
+      position: absolute; left: 10px; right: 10px; top: calc(50% - 1px); height: 2px;
+      background: var(--green); box-shadow: 0 0 12px rgba(34,197,94,.9);
+      animation: pulso 1.6s infinite ease-in-out;
+    }
+    @keyframes pulso { 50% { opacity: .3; } }
+    @media (prefers-reduced-motion: reduce) { .linha { animation: none; } }
 
-    <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+    /* ---- recorte e última leitura ---- */
+    .leitura { padding: 14px; display: grid; gap: 10px; }
+    .recorte {
+      min-height: 40px; display: grid; place-items: center; padding: 6px;
+      background: #0b130f; border: 1px solid var(--border); border-radius: 12px;
+    }
+    #preview { display: block; width: 100%; border-radius: 6px; }
+    #preview:not([src]) { display: none; }
+    #preview[src] + p { display: none; }
+    #last-key {
+      font-size: .94rem; font-weight: 700; text-align: center; word-break: break-all; color: #b8f5c8;
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 12px; padding: 12px;
+    }
 
+    /* ---- botão fixo no rodapé ---- */
+    .acao {
+      position: sticky; bottom: 0; margin-top: auto;
+      padding: 12px 0 calc(14px + env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, transparent, #050806 40%);
+    }
+    #captureBtn {
+      width: 100%; border: none; cursor: pointer; border-radius: 14px; padding: 18px;
+      font-weight: 900; font-size: 1.05rem; color: #06210f;
+      background: linear-gradient(180deg, var(--green), var(--green-2));
+      box-shadow: var(--shadow);
+    }
+    #captureBtn:hover { filter: brightness(1.08); }
+    #captureBtn:active { transform: scale(.99); }
+  </style>
 </head>
 
-<body class="bg-black text-white min-h-screen flex flex-col items-center p-4 overflow-x-hidden">
-
-    <div class="w-full max-w-5xl flex flex-col gap-4">
-
-        <!-- HEADER -->
-        <div class="flex items-center justify-between gap-4">
-
-            <div>
-
-                <h1 class="text-3xl font-bold">
-                    Scanner NF-e
-                </h1>
-
-                <p class="text-zinc-400 mt-1">
-                    Centralize a chave de acesso na área verde
-                </p>
-
-            </div>
-
-            <div 
-                id="status"
-                class="bg-zinc-900 border border-zinc-700 px-4 py-2 rounded-xl text-sm whitespace-nowrap"
-            >
-                iniciando câmera...
-            </div>
-
+<body>
+  <div class="app">
+    <header class="panel hero">
+      <div class="brand">
+        <div class="logo">NF</div>
+        <div>
+          <h1>Scanner NF-e</h1>
+          <p>Alinhe a chave de acesso na linha verde.</p>
         </div>
+      </div>
+      <div class="status-pill" data-tipo="wait" role="status">
+        <span class="status-dot"></span><span id="status">iniciando câmera...</span>
+      </div>
+    </header>
 
-        <!-- PIN DE CONEXÃO -->
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+    <section class="panel pin-panel">
+      <div class="label">PIN de conexão</div>
+      <div id="pin">------</div>
+      <p>Digite no painel do desktop para conectar.</p>
+    </section>
 
-            <div>
-                <p class="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                    PIN de conexão
-                </p>
-                <p class="text-zinc-400 text-xs mt-1">
-                    Digite no painel do viewer para conectar
-                </p>
-            </div>
-
-            <div
-                id="pin"
-                class="text-4xl font-black tracking-[0.3em] text-emerald-300 tabular-nums"
-            >
-                ------
-            </div>
-
-        </div>
-
-        <!-- PREVIEW OCR -->
-        <div class="w-full">
-
-            <h2 class="text-lg font-bold mb-2">
-                Preview OCR
-            </h2>
-
-            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
-
-                <img 
-                    id="preview"
-                    class="w-full rounded-xl"
-                >
-
-            </div>
-
-        </div>
-
-        <!-- CAMERA -->
-        <div class="relative w-full rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
-
-            <video 
-                id="video"
-                autoplay
-                playsinline
-                muted
-                class="w-full bg-black"
-            ></video>
-
-            <!-- OVERLAY -->
-            <div class="absolute inset-0 pointer-events-none">
-
-                <!-- ESCURECIMENTO -->
-                <div class="absolute inset-0 bg-black/40"></div>
-
-                <!-- ÁREA OCR -->
-                <div 
-                    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] h-[90px] border-[5px] border-emerald-400 rounded-3xl shadow-[0_0_40px_rgba(52,211,153,0.9)]"
-                >
-
-                    <!-- TEXTO -->
-                    <div class="absolute -top-10 left-1/2 -translate-x-1/2">
-
-                        <div class="bg-emerald-400 text-black font-bold px-4 py-1 rounded-full text-sm shadow-lg">
-                            POSICIONE A CHAVE AQUI
-                        </div>
-
-                    </div>
-
-                    <!-- LINHA -->
-                    <div 
-                        class="absolute left-0 top-1/2 -translate-y-1/2 h-[3px] w-full bg-emerald-300 animate-pulse"
-                    ></div>
-
-                    <!-- CANTOS -->
-                    <div class="absolute -top-1 -left-1 w-10 h-10 border-l-4 border-t-4 border-emerald-300 rounded-tl-2xl"></div>
-
-                    <div class="absolute -top-1 -right-1 w-10 h-10 border-r-4 border-t-4 border-emerald-300 rounded-tr-2xl"></div>
-
-                    <div class="absolute -bottom-1 -left-1 w-10 h-10 border-l-4 border-b-4 border-emerald-300 rounded-bl-2xl"></div>
-
-                    <div class="absolute -bottom-1 -right-1 w-10 h-10 border-r-4 border-b-4 border-emerald-300 rounded-br-2xl"></div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- BOTÃO -->
-        <button
-            id="captureBtn"
-            class="bg-emerald-400 hover:bg-emerald-300 active:scale-[0.98] transition-all text-black font-bold text-xl py-5 rounded-2xl shadow-xl"
-        >
-            CAPTURAR CHAVE
-        </button>
-
-        <!-- ÚLTIMA CHAVE -->
-        <div 
-            id="last-key"
-            class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 break-all text-center text-lg text-emerald-300 min-h-[80px] flex items-center justify-center"
-        >
-            nenhuma chave lida
-        </div>
-
+    <div class="panel camera">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="overlay">
+        <div class="alvo"><div class="linha"></div></div>
+      </div>
     </div>
 
-    <canvas id="canvas" class="hidden"></canvas>
+    <section class="panel leitura">
+      <div class="label">Recorte lido</div>
+      <div class="recorte">
+        <img id="preview" alt="Recorte enviado ao OCR">
+        <p>O recorte aparece aqui após a captura.</p>
+      </div>
+      <div class="label">Última leitura</div>
+      <div id="last-key">nenhuma chave lida</div>
+    </section>
+
+    <div class="acao">
+      <button id="captureBtn" type="button">Capturar chave</button>
+    </div>
+  </div>
+
+  <canvas id="canvas" hidden></canvas>
 
 <script>
 // ============================================================================
@@ -178,6 +193,12 @@ const lastKey = document.getElementById("last-key");
 const preview = document.getElementById("preview");
 const pinEl = document.getElementById("pin");
 
+// Texto + tom do selo (ok | wait | err), as mesmas cores de estado do viewer.
+function definirStatus(texto, tipo) {
+    status.innerText = texto;
+    status.parentElement.dataset.tipo = tipo;
+}
+
 // ===== CONEXÃO =====
 // O PIN gerado aqui É o PeerID da sessão do celular: quem digitar esse número
 // no viewer conecta; quem não souber, não alcança este peer.
@@ -194,7 +215,7 @@ function iniciarPeer(pin) {
 
     peer.on("connection", connection => {
         conn = connection;
-        status.innerText = "viewer conectado";
+        definirStatus("viewer conectado", "ok");
     });
 
     // PIN já em uso por outro peer no servidor: gera outro e a tela atualiza.
@@ -224,10 +245,10 @@ async function startCamera() {
         });
 
         video.srcObject = stream;
-        status.innerText = "câmera pronta";
+        definirStatus("câmera pronta", "ok");
     } catch (err) {
         console.error(err);
-        status.innerText = "erro câmera";
+        definirStatus("erro câmera", "err");
     }
 }
 
@@ -267,7 +288,7 @@ async function processOCR() {
         return;
     }
 
-    status.innerText = "lendo chave...";
+    definirStatus("lendo chave...", "wait");
     captureFrame();
 
     try {
@@ -302,17 +323,17 @@ async function processOCR() {
             });
 
             lastKey.innerText = key;
-            status.innerText = "chave enviada";
+            definirStatus("chave enviada", "ok");
             navigator.vibrate?.(300);
         } else {
             lastKey.innerText = text || "nenhum número encontrado";
-            status.innerText = `faltando dígitos (${text.length}/44)`;
+            definirStatus(`faltando dígitos (${text.length}/44)`, "err");
             navigator.vibrate?.(100);
             console.log("OCR INVÁLIDO:", text);
         }
     } catch (err) {
         console.error(err);
-        status.innerText = "erro OCR";
+        definirStatus("erro OCR", "err");
     }
 }
 

@@ -28,10 +28,15 @@
 
 ## Phone (`phone.html` ← `src/phone`)
 
-- Tailwind (CDN), dark: `bg-black text-white`.
-- Superfícies: `bg-zinc-900 border border-zinc-700/-800 rounded-2xl/3xl`.
-- Destaques de ação/estado: **emerald-400** (sólido com texto preto) e `emerald-300` (texto).
-- Tipografia: system-ui via Tailwind, títulos `font-bold text-3xl`, botão `text-xl font-bold py-5 rounded-2xl`.
+Mesma linguagem do viewer: **mesmos tokens, Satoshi, fundo com radiais verde/vermelho, painéis e logo "NF"**.
+CSS próprio inline (sem Tailwind); os tokens são repetidos no `:root` do phone.
+
+- Layout: coluna única, `max-width: 520px`, `gap: 12px`, na ordem: cabeçalho + status → PIN → câmera → recorte e última leitura → botão.
+- **Status pill** igual à do viewer, com cor por estado em `data-tipo`: `ok` verde (câmera pronta, viewer conectado, chave enviada), `wait` âmbar (iniciando câmera, lendo chave), `err` vermelho (erro de câmera/OCR, faltando dígitos). Texto e tom mudam juntos via `definirStatus()`.
+- PIN: painel com borda verde `.26`, número `2.4rem` peso 900, tracking `.3em`, fundo de input `#0b130f`.
+- Câmera: largura 100%, `max-height: 36dvh` com `object-fit: cover` (corta só em cima/embaixo; nunca nas laterais, senão a área verde deixa de coincidir com o recorte do OCR).
+- Mira: faixa 92% × 90px centralizada, borda verde, radius 14px, linha central pulsante (parada com `prefers-reduced-motion`), fora dela escurecido. Nada escrito sobre a imagem; a instrução fica no cabeçalho.
+- Botão "Capturar chave": gradiente verde do botão primário, texto `#06210f`, peso 900, **fixo no rodapé** (`sticky`, respeita `safe-area-inset-bottom`).
 
 ## Modal do PIN (viewer) — spec
 

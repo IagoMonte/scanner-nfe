@@ -5,7 +5,7 @@
     "pt": "Scanner NF-e"
   },
   "summary": {
-    "pt": "Scanner de nota fiscal que lê a chave de acesso com a câmera do celular via OCR, mostra fornecedor e produtos em um painel web e gera a linha de fabricação/validade pronta para a planilha."
+    "pt": "Recebimento de mercadoria sem digitar a chave da NF-e: o celular lê os 44 dígitos por OCR, o painel no desktop mostra fornecedor e produtos e gera a linha de fabricação e validade pronta para a planilha."
   },
   "status": "live",
   "category": {
@@ -24,13 +24,15 @@
   },
   "stack": [
     "JavaScript",
+    "HTML e CSS",
     "Tesseract.js",
     "PeerJS",
-    "Tailwind CSS",
+    "WebRTC",
+    "Nginx",
     "Node.js",
+    "jsdom",
     "Python",
-    "undetected-chromedriver",
-    "Nginx"
+    "undetected-chromedriver"
   ],
   "facts": {
     "role": {
@@ -55,28 +57,35 @@
     {
       "file": "shots/01-painel-notas.png",
       "caption": {
-        "pt": "painel com a lista de notas lidas e o detalhe da nota selecionada"
+        "pt": "painel conectado, com a lista de notas e o detalhe da nota selecionada"
       },
       "format": "desktop"
     },
     {
       "file": "shots/02-linha-planilha.png",
       "caption": {
-        "pt": "produtos com fabricação e validade preenchidos e a linha copiada para a planilha"
+        "pt": "fabricação e validade preenchidas e a linha do produto copiada para a planilha"
       },
       "format": "desktop"
     },
     {
-      "file": "shots/03-conexao-pin.png",
+      "file": "shots/03-busca-e-erros.png",
       "caption": {
-        "pt": "conexão por PIN: modal bloqueado com o código de 6 dígitos gerado pelo celular"
+        "pt": "busca manual avisando chave repetida e cartão de erro com exclusão automática"
       },
       "format": "desktop"
     },
     {
-      "file": "shots/04-celular-camera.png",
+      "file": "shots/04-conexao-pin.png",
       "caption": {
-        "pt": "app do celular com a área verde de OCR e o PIN de conexão"
+        "pt": "conexão por PIN: modal do desktop com o código de 6 dígitos exibido no celular"
+      },
+      "format": "desktop"
+    },
+    {
+      "file": "shots/05-celular-leitura.png",
+      "caption": {
+        "pt": "celular após a leitura: PIN, mira, recorte do OCR e chave enviada"
       },
       "format": "mobile"
     }

@@ -4,78 +4,69 @@
 
 | Camada | Tecnologia |
 |---|---|
-| Painel desktop | HTML + CSS + JavaScript puro (`viewer.html`, `viewer.js`) |
-| App do celular | HTML + Tailwind CDN + JavaScript (`phone.html`) |
-| OCR | Tesseract.js (roda no próprio celular) |
-| Transporte celular → painel | PeerJS (WebRTC/P2P), sem servidor próprio |
-| Consulta da nota | Nginx como proxy de mesma origem para APIs de DANFE e ReceitaWS |
+| Painel desktop | HTML, CSS e JavaScript puro (`viewer.html`, `viewer.js`) |
+| App do celular | HTML, CSS e JavaScript puro (`phone.html`) |
+| OCR | Tesseract.js, executado no celular |
+| Celular → painel | PeerJS (WebRTC) |
+| Consultas externas | Nginx como proxy de mesma origem |
 | Auxiliar | Python + undetected-chromedriver (`api.py`) |
 | Testes | jsdom + `node:test` + `unittest` |
 
 ## Fluxo
 
 ```
-┌─────────────────┐   PeerJS (P2P)   ┌──────────────────────┐
+┌─────────────────┐   PeerJS (P2P)    ┌──────────────────────┐
 │   phone.html    │ ────────────────▶ │     viewer.html      │
 │ (no celular)    │  chave + imagem   │ (painel no desktop)  │
-│  OCR da chave   │                   │ consulta APIs da NF-e│
+│  OCR da chave   │                   │ consulta a NF-e      │
 └─────────────────┘                   └──────────┬───────────┘
-                                                 │ Nginx (proxy)
+                                                 │ Nginx (proxy, URLs relativas)
                           ┌──────────────────────┼──────────────────────┐
                           ▼                      ▼                      ▼
                  consultadanfe.com      api.danferapida.com.br   receitaws.com.br
                   (XML primário)           (XML fallback)        (nome do CNPJ)
 ```
 
-1. O celular recorta a faixa da chave, roda o Tesseract e envia `{type:'nfe', key}`
-   para o painel pelo canal PeerJS aberto com o PIN.
-2. O painel cria o cartão (estado "lendo"), valida o CNPJ embutido na chave
-   (`chave.slice(6,20)`) e dispara em paralelo fornecedor e produtos.
-3. Produtos vêm do XML do DANFE: API primária em base64, com fallback automático
-   na segunda rota; o parser lê `xProd`, `qCom` e `uCom` de cada `det`.
-4. Cada produto ganha uma linha na tabela global; fabricação e validade são
-   gravadas nessa linha e a "Gerar linha" copia o registro tab-separado.
+1. O celular recorta a faixa central do vídeo, roda o Tesseract só com dígitos e
+   envia `{ type: 'nfe', key }` com a imagem do recorte.
+2. O painel enfileira a chave, cria o cartão e extrai CNPJ (`chave.slice(6, 20)`)
+   e número da nota (`chave.slice(25, 34)`).
+3. Com o CNPJ válido, consulta fornecedor e produtos em paralelo.
+4. O XML vem em base64 da API primária ou como texto do fallback; o parser lê
+   `xProd`, `qCom` e `uCom`.
+5. Cada produto ganha uma linha na tabela em memória, que alimenta o **Gerar linha**.
 
 ## Código-fonte e build
 
-`src/viewer/` é um módulo por responsabilidade (`config`, `dom`, `state`,
-`utils`, `api`, `domain`, `render`, `events`, `boot`) e `src/phone/` separa
-marcação e script. `tools/build.js` — sem dependências — concatena os módulos
-nos artefatos `viewer.js` e `phone.html` e **falha alto** se um literal que a
-suíte consome estiver fora do contrato.
+`src/viewer/` tem um módulo por responsabilidade (`config`, `dom`, `state`,
+`utils`, `api`, `domain`, `render`, `events`, `boot`); `src/phone/` separa marcação
+e script. `tools/build.js`, sem dependências, concatena tudo em `viewer.js` e
+`phone.html` e falha se um nome ou trecho exigido pela suíte sumir.
 
-Os artefatos ficam **versionados** porque a hospedagem é estática: subir o site é
-copiar arquivos, sem etapa de build no servidor.
+Os arquivos gerados são versionados: publicar é copiar arquivos estáticos.
 
 ## Decisões
 
-- **Sem backend próprio.** O tráfego do scanner é P2P (PeerJS); as consultas
-  externas passam pelo Nginx para evitar CORS e esconder chaves de API. O preço é
+- **Sem backend próprio.** As chaves lidas trafegam por PeerJS; as consultas passam
+  pelo Nginx para evitar CORS e manter a chave de API fora do navegador. O preço é
   depender do broker público do PeerJS.
-- **PIN como PeerID.** O PeerID do celular é o PIN de 6 dígitos exibido na tela:
-  quem não sabe o PIN não conecta. Colisão de ID regenera o PIN. O modal do
-  desktop fica bloqueado (blur) até o PIN — a única saída é a busca manual, que
-  não toca no peer.
-- **Testam-se os artefatos, não o fonte.** A suíte carrega `viewer.html`,
-  `viewer.js` e o script real do `phone.html` dentro de um jsdom, controlando só
-  as fronteiras externas (PeerJS, `fetch`, clipboard, relógio). Assim o teste
-  cobre exatamente o que o navegador vai rodar.
-- **Um pipeline só para chave.** A busca manual digitada enfileira no mesmo
-  `pendingScans` da leitura do celular — fila serial de 1 s, deduplicação e
-  cartões idênticos, sem caminho paralelo que precise de manutenção dupla.
-- **Timeout curto e ritmo anti-429.** API primária com teto de 15 s antes do
-  fallback, e 1 s entre consultas consecutivas.
-- **Cartão de erro morre sozinho** (15 s), mas fica acessível para conferência
-  enquanto existe.
+- **PIN como PeerID.** Substituiu um identificador fixo, ao qual qualquer painel
+  podia se conectar. Se o PIN já estiver em uso, o celular gera outro.
+- **Um só caminho para a chave.** A busca manual entra na mesma fila das leituras do
+  celular, com a mesma deduplicação e os mesmos cartões.
+- **Ritmo controlado.** Uma nota por vez, com 1 s entre consultas para evitar 429,
+  e teto de 15 s na API primária antes do fallback.
+- **Testar o que o navegador executa.** A suíte carrega os arquivos gerados dentro
+  do jsdom e controla apenas as fronteiras externas.
+- **Mesma identidade nas duas telas.** Cores, tipografia e componentes são
+  descritos em `visual.md` e compartilhados por celular e painel.
 
 ## Limitações conhecidas
 
-- A chave é validada só pelo CNPJ embutido; o dígito verificador geral não é
-  conferido.
-- Quatro bugs conhecidos estão marcados com `test.skip` na suíte (índice órfão ao
-  apagar nota, inputs que perdem valor no re-render, UTF-8 quebrado no `atob` da
-  API primária e OCR aceitando janela errada de dígitos).
-- O `viewer.html` em produção responde, mas a consulta do XML está falhando
-  (`POST /api/nfe/` → 400 e fallback → 401): provável chave de API do proxy.
+- O PIN de 6 dígitos evita conexões cruzadas, mas não é autenticação forte.
+- A chave é conferida só pelo CNPJ embutido, sem o dígito verificador.
+- Quatro bugs estão marcados com `test.skip`: índice órfão ao apagar nota, campos
+  que perdem o valor no redesenho da tela, acentos quebrados no `atob` da API
+  primária e OCR aceitando a janela errada de dígitos.
 
-![app do celular com a área de OCR](../shots/04-celular-camera.png)
+![app do celular após uma leitura](../shots/05-celular-leitura.png)

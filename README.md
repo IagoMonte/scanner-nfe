@@ -7,6 +7,40 @@ fabricação e validade), com exportação da linha no formato de planilha.
 Feito para o fluxo de recebimento de mercadoria: aponta o celular para a chave da
 NF-e, a chave é lida e a nota aparece no painel para conferência.
 
+![Painel do desktop e app do celular](im-hub/thumbnail.png)
+
+## Apresentação
+
+No recebimento de mercadoria, conferir uma nota significa digitar 44 dígitos, abrir
+a consulta do DANFE, anotar fornecedor e produtos e registrar fabricação e validade
+de cada item. O Scanner NF-e encurta esse caminho: **aponte o celular, receba a nota
+no computador e cole a linha na planilha**.
+
+1. **Conecte** — o celular mostra um PIN de 6 dígitos; digite-o no painel.
+2. **Capture** — alinhe a chave de acesso na linha verde; o OCR roda no aparelho.
+3. **Confira** — CNPJ, número da nota, fornecedor e produtos aparecem no painel.
+4. **Exporte** — informe fabricação e validade e clique em **Gerar linha**.
+
+### Destaques
+
+- Sem app para instalar: duas páginas web ligadas por **P2P (PeerJS)**.
+- **Busca manual** pela chave digitada, quando não houver celular à mão.
+- Segunda API como **fallback** quando a consulta principal falha ou demora.
+- Linha separada por tabulação, pronta para o Excel.
+- Suíte automática que testa as páginas reais, com teste de mutação.
+
+### Telas
+
+| Painel com as notas lidas | Linha copiada para a planilha |
+|---|---|
+| ![Painel de notas](im-hub/shots/01-painel-notas.png) | ![Linha da planilha](im-hub/shots/02-linha-planilha.png) |
+| **Busca manual e tratamento de erro** | **Conexão por PIN** |
+| ![Busca manual e erro](im-hub/shots/03-busca-e-erros.png) | ![Modal do PIN](im-hub/shots/04-conexao-pin.png) |
+
+<img src="im-hub/shots/05-celular-leitura.png" alt="App do celular após a leitura da chave" width="320">
+
+> As imagens usam dados e documento fictícios.
+
 ## Como funciona
 
 O sistema tem duas páginas que se comunicam **P2P via PeerJS**:
@@ -85,7 +119,8 @@ python3 -m http.server 8080
 npx serve .
 ```
 
-Abra `viewer.html` no desktop e `phone.html` no celular (mesmo domínio/porta).
+Abra `viewer.html` no desktop e `phone.html` no celular (mesmo domínio/porta). Num
+aparelho diferente da máquina que serve as páginas, a câmera só funciona por HTTPS.
 O celular gera um **PIN de 6 dígitos** (que é o PeerID da sessão) e o exibe na
 tela; no desktop, digite esse PIN no modal e clique **Conectar**. Sem o PIN,
 nenhuma conexão acontece — cada celular só aceita quem souber o seu PIN.
@@ -112,7 +147,10 @@ python3 tests/sanity.py     # quebra o código de propósito e exige que os test
 | `tests/viewer.queue.test.js` | fila de 1s entre consultas e auto-exclusão de 15s |
 | `tests/viewer.ui.test.js` | cards por estado, seleção, inputs e a linha da planilha |
 | `tests/viewer.manual.test.js` | busca manual da chave (formato, duplicata, sem celular) |
+| `tests/viewer.pin.test.js` | modal do PIN no painel e erros de conexão |
 | `tests/phone.ocr.test.js` | câmera, recorte da área verde, extração da chave, envio |
+| `tests/phone.pin.test.js` | geração do PIN e colisão no celular |
+| `tests/phone.status.test.js` | cor do status do celular por estado |
 | `tests/test_api_cli.py` | validação de CLI e filtro CDP do `api.py` |
 
 Quatro testes ficam **`skip` de propósito**: codificam a intenção de bugs já
@@ -128,7 +166,7 @@ O `viewer.js` chama os endpoints abaixo, todos resolvidos pelo Nginx (ver `deplo
 | `POST /api/nfe/` | `consultadanfe.com/api/v1/consulta` | XML da nota (produtos) |
 | `GET /api/nfe/fallback/{chave}` | `api.danferapida.com.br/...` | Fallback do XML |
 | `GET /receita/v1/cnpj/{cnpj}` | `receitaws.com.br` | Nome do fornecedor |
-| `GET /danfe/...` | `ws.meudanfe.com.br` | Consulta DANFE (usada pelo `api.py`) |
+| `GET /danfe/...` | `ws.meudanfe.com.br` | Consulta DANFE (o painel não usa; o `api.py` acessa o site direto) |
 
 > O painel usa **URLs relativas** (`src/viewer/config.js`): o site precisa ser
 > servido com o proxy do Nginx na **mesma origem**. Num servidor estático local a
@@ -156,9 +194,9 @@ A API key do fallback (danferapida) **não** fica no config versionado — ver
 
 ## Stack
 
-- **Front:** HTML, CSS, JavaScript puro (sem build)
+- **Front:** HTML, CSS e JavaScript puro, com build sem dependências (`tools/build.js`)
 - **OCR:** Tesseract.js
 - **P2P:** PeerJS
-- **UI:** Tailwind CDN (phone) + CSS custom (viewer)
+- **UI:** CSS próprio, com a mesma identidade nas duas telas (`visual.md`)
 - **Aux:** Python + undetected-chromedriver
 - **Servidor:** Nginx (proxy + estáticos)

@@ -17,6 +17,12 @@ const lastKey = document.getElementById("last-key");
 const preview = document.getElementById("preview");
 const pinEl = document.getElementById("pin");
 
+// Texto + tom do selo (ok | wait | err), as mesmas cores de estado do viewer.
+function definirStatus(texto, tipo) {
+    status.innerText = texto;
+    status.parentElement.dataset.tipo = tipo;
+}
+
 // ===== CONEXÃO =====
 // O PIN gerado aqui É o PeerID da sessão do celular: quem digitar esse número
 // no viewer conecta; quem não souber, não alcança este peer.
@@ -33,7 +39,7 @@ function iniciarPeer(pin) {
 
     peer.on("connection", connection => {
         conn = connection;
-        status.innerText = "viewer conectado";
+        definirStatus("viewer conectado", "ok");
     });
 
     // PIN já em uso por outro peer no servidor: gera outro e a tela atualiza.
@@ -63,10 +69,10 @@ async function startCamera() {
         });
 
         video.srcObject = stream;
-        status.innerText = "câmera pronta";
+        definirStatus("câmera pronta", "ok");
     } catch (err) {
         console.error(err);
-        status.innerText = "erro câmera";
+        definirStatus("erro câmera", "err");
     }
 }
 
@@ -106,7 +112,7 @@ async function processOCR() {
         return;
     }
 
-    status.innerText = "lendo chave...";
+    definirStatus("lendo chave...", "wait");
     captureFrame();
 
     try {
@@ -141,17 +147,17 @@ async function processOCR() {
             });
 
             lastKey.innerText = key;
-            status.innerText = "chave enviada";
+            definirStatus("chave enviada", "ok");
             navigator.vibrate?.(300);
         } else {
             lastKey.innerText = text || "nenhum número encontrado";
-            status.innerText = `faltando dígitos (${text.length}/44)`;
+            definirStatus(`faltando dígitos (${text.length}/44)`, "err");
             navigator.vibrate?.(100);
             console.log("OCR INVÁLIDO:", text);
         }
     } catch (err) {
         console.error(err);
-        status.innerText = "erro OCR";
+        definirStatus("erro OCR", "err");
     }
 }
 
