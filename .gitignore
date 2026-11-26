@@ -24,3 +24,6 @@ venv/
 # Instruções de agente de código (não versionar)
 CLAUDE.md
 AGENTS.md
+
+# Plano de trabalho local (não versionar)
+incrementalPlan.md
