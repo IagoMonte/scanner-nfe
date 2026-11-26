@@ -130,8 +130,10 @@ O `viewer.js` chama os endpoints abaixo, todos resolvidos pelo Nginx (ver `deplo
 | `GET /receita/v1/cnpj/{cnpj}` | `receitaws.com.br` | Nome do fornecedor |
 | `GET /danfe/...` | `ws.meudanfe.com.br` | Consulta DANFE (usada pelo `api.py`) |
 
-> Os domínios `example.com` estão **hardcoded** no `viewer.js`. Para rodar
-> em outro host, ajuste as constantes no topo de `produtosbyxml` e `buscarFornecedor`.
+> O painel usa **URLs relativas** (`src/viewer/config.js`): o site precisa ser
+> servido com o proxy do Nginx na **mesma origem**. Num servidor estático local a
+> página abre, mas as consultas de nota e fornecedor falham. No config de exemplo,
+> troque `example.com`, `site-user` e o endereço do `/localapi/` pelos seus.
 
 ## api.py
 
