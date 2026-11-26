@@ -78,6 +78,29 @@ function segundosAteApagar(scan) {
 }
 
 
+/** Arquivo a partir de base64; null quando a consulta não trouxe um conteúdo legível. */
+function base64ParaBlob(base64, tipo) {
+  if (typeof base64 !== 'string' || !base64) return null;
+  try {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    return new Blob([bytes], { type: tipo });
+  } catch {
+    return null;
+  }
+}
+
+
+function baixarArquivo(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  link.click();
+  // revogar no mesmo instante pode cancelar o download em alguns navegadores
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
 /** Linha no formato tab-separado esperado pelo Excel (ordem das colunas fixa). */
 function montarLinhaPlanilha(item) {
   const quantidade = [item.quantidade, item.unidade].filter(Boolean).join(' ');

@@ -43,6 +43,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // Baixa o XML ou o PDF da nota do card
+  const downloadBtn = e.target.closest('.download-btn');
+  if (downloadBtn) {
+    const { scanId, tipo } = downloadBtn.dataset;
+    const scan = scans.find(item => item.id === scanId);
+    const arquivo = scan?.documentos?.[tipo];
+    if (arquivo) baixarArquivo(arquivo, `NFe-${scan.key}.${tipo}`);
+    return;
+  }
+
   // Apaga card de erro manualmente
   const deleteBtn = e.target.closest('.manual-delete-btn');
   if (deleteBtn) {

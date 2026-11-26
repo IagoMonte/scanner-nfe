@@ -45,13 +45,13 @@ function base64(xml) {
 }
 
 /** Resposta da API primária (POST /api/nfe/). */
-function respostaPrimaria(xml) {
-  return { status: 'ok', xml_base64: base64(xml) };
+function respostaPrimaria(xml, pdfBase64) {
+  return { status: 'ok', xml_base64: base64(xml), pdf_base64: pdfBase64 };
 }
 
 /** Resposta do fallback (GET /api/nfe/fallback/{chave}). */
-function respostaFallback(xml) {
-  return { xmlCode: xml };
+function respostaFallback(xml, pdfBase64) {
+  return { xmlCode: xml, base64Code: pdfBase64 };
 }
 
 module.exports = {

@@ -33,8 +33,10 @@
    e número da nota (`chave.slice(25, 34)`).
 3. Com o CNPJ válido, consulta fornecedor e produtos em paralelo.
 4. O XML vem em base64 da API primária ou como texto do fallback; o parser lê
-   `xProd`, `qCom` e `uCom`.
+   `xProd`, `qCom` e `uCom`. A mesma resposta traz o PDF em base64.
 5. Cada produto ganha uma linha na tabela em memória, que alimenta o **Gerar linha**.
+6. XML e PDF ficam em memória no cartão da nota até o download, o reset ou o
+   recarregamento da página.
 
 ## Código-fonte e build
 
@@ -58,6 +60,9 @@ Os arquivos gerados são versionados: publicar é copiar arquivos estáticos.
   escapados antes de ir para a tela, e só chaves de 44 dígitos são processadas.
 - **Proxy restrito.** O Nginx de exemplo aceita apenas as rotas e formatos usados
   pelo painel, sem CORS e com limite de taxa.
+- **Download sem consulta extra.** Os arquivos vêm na resposta que já traz os
+  produtos. O XML é salvo sem passar pela leitura de texto, para preservar o
+  documento assinado.
 - **Um só caminho para a chave.** A busca manual entra na mesma fila das leituras do
   celular, com a mesma deduplicação e os mesmos cartões.
 - **Ritmo controlado.** Uma nota por vez, com 1 s entre consultas para evitar 429,

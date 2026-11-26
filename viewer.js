@@ -138,6 +138,29 @@ function segundosAteApagar(scan) {
 }
 
 
+/** Arquivo a partir de base64; null quando a consulta não trouxe um conteúdo legível. */
+function base64ParaBlob(base64, tipo) {
+  if (typeof base64 !== 'string' || !base64) return null;
+  try {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    return new Blob([bytes], { type: tipo });
+  } catch {
+    return null;
+  }
+}
+
+
+function baixarArquivo(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  link.click();
+  // revogar no mesmo instante pode cancelar o download em alguns navegadores
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
 /** Linha no formato tab-separado esperado pelo Excel (ordem das colunas fixa). */
 function montarLinhaPlanilha(item) {
   const quantidade = [item.quantidade, item.unidade].filter(Boolean).join(' ');
@@ -158,7 +181,7 @@ function montarLinhaPlanilha(item) {
 // src/viewer/api.js — consulta do XML da nota (primária + fallback) e do CNPJ
 // ============================================================================
 
-/** API primária: devolve o XML em base64 (timeout e erro acionam o fallback). */
+/** API primária: devolve XML e PDF em base64 (timeout e erro acionam o fallback). */
 async function obterXMLPrimaria(chaveacesso) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_CONSULTA_MS);
@@ -180,14 +203,19 @@ async function obterXMLPrimaria(chaveacesso) {
       throw new Error('Resposta inválida da API primária.');
     }
 
-    return atob(jsonRes.xml_base64);
+    return {
+      texto: atob(jsonRes.xml_base64),
+      // arquivo para download: bytes originais (a nota é assinada)
+      xml: base64ParaBlob(jsonRes.xml_base64, 'application/xml'),
+      pdf: base64ParaBlob(jsonRes.pdf_base64, 'application/pdf')
+    };
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
 
-/** Fallback proxyado (mesma origem): devolve o XML puro dentro de "xmlCode". */
+/** Fallback proxyado (mesma origem): XML puro em "xmlCode" e PDF em "base64Code". */
 async function obterXMLFallback(chaveacesso) {
   const fallbackRes = await fetch(`${API_NFE_FALLBACK_URL}${chaveacesso}`, {
     method: 'GET'
@@ -199,7 +227,11 @@ async function obterXMLFallback(chaveacesso) {
 
   const fallbackData = await fallbackRes.json();
   if (fallbackData && fallbackData.xmlCode) {
-    return fallbackData.xmlCode;
+    return {
+      texto: fallbackData.xmlCode,
+      xml: new Blob([fallbackData.xmlCode], { type: 'application/xml' }),
+      pdf: base64ParaBlob(fallbackData.base64Code, 'application/pdf')
+    };
   }
 
   throw new Error('Estrutura de resposta do fallback não contém xmlCode.');
@@ -240,22 +272,27 @@ function extrairProdutosDoXML(xmlString) {
 }
 
 
-/** Consulta primária + fallback e parser do XML até chegar na lista de produtos. */
-async function produtosbyxml(chaveacesso) {
-  let xmlString;
+/**
+ * Consulta primária + fallback e parser do XML até chegar na lista de produtos.
+ * Se receber o scan, guarda nele os arquivos da nota para download.
+ */
+async function produtosbyxml(chaveacesso, scan) {
+  let nota;
 
   try {
-    xmlString = await obterXMLPrimaria(chaveacesso);
+    nota = await obterXMLPrimaria(chaveacesso);
   } catch (error) {
     console.warn('Falha ou timeout na API primária, acionando fallback...', error.message);
-    xmlString = await obterXMLFallback(chaveacesso);
+    nota = await obterXMLFallback(chaveacesso);
   }
 
-  const produtos = extrairProdutosDoXML(xmlString);
+  const produtos = extrairProdutosDoXML(nota.texto);
 
   if (produtos.length === 0) {
     throw new Error('Nenhum produto encontrado no XML.');
   }
+
+  if (scan) scan.documentos = { xml: nota.xml, pdf: nota.pdf };
 
   return produtos;
 }
@@ -284,7 +321,8 @@ function criarScan(chave) {
     createdAt: Date.now(),
     deleteAt: null,
     deleteTimer: null,
-    produtos: []
+    produtos: [],
+    documentos: null
   };
 
   scans.unshift(scan);
@@ -352,7 +390,7 @@ async function processScan(data) {
   try {
     const [fornecedor, produtos] = await Promise.all([
       buscarFornecedor(scan.cnpj),
-      produtosbyxml(data.key)
+      produtosbyxml(data.key, scan)
     ]);
 
     if (!fornecedor) {
@@ -512,6 +550,16 @@ function cardErro(scan) {
 }
 
 
+/** Botões de download; sem arquivo, o botão fica desabilitado e diz o motivo. */
+function botoesDownload(scan) {
+  return ['xml', 'pdf'].map(tipo => {
+    const nome = tipo.toUpperCase();
+    const indisponivel = scan.documentos?.[tipo] ? '' : `disabled title="${nome} não disponível"`;
+    return `<button class="copy-btn download-btn" data-scan-id="${scan.id}" data-tipo="${tipo}" ${indisponivel}>Baixar ${nome}</button>`;
+  }).join('');
+}
+
+
 function cardSucesso(scan) {
   const produtosHtml = scan.produtos.map(produto => {
     const quantidadeTexto = [produto.quantidade, produto.unidade].filter(Boolean).join(' ');
@@ -540,6 +588,7 @@ function cardSucesso(scan) {
         <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
         <div class="meta-box wide"><div class="label">Fornecedor</div><div class="value">${escaparHTML(scan.fornecedor || 'Não encontrado')}</div></div>
       </div>
+      <div class="doc-actions">${botoesDownload(scan)}</div>
       <div class="products">${produtosHtml || '<div class="error-box">Nenhum produto encontrado no XML.</div>'}</div>
       <div class="footer-note">Use "Gerar linha" para copiar o item no formato do Excel.</div>
     </article>
@@ -646,6 +695,16 @@ document.addEventListener('click', async (e) => {
     setTimeout(() => {
       btn.innerText = textoOriginal;
     }, 1200);
+    return;
+  }
+
+  // Baixa o XML ou o PDF da nota do card
+  const downloadBtn = e.target.closest('.download-btn');
+  if (downloadBtn) {
+    const { scanId, tipo } = downloadBtn.dataset;
+    const scan = scans.find(item => item.id === scanId);
+    const arquivo = scan?.documentos?.[tipo];
+    if (arquivo) baixarArquivo(arquivo, `NFe-${scan.key}.${tipo}`);
     return;
   }
 

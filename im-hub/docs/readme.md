@@ -6,7 +6,8 @@
 
 Scanner de nota fiscal eletrônica para o **recebimento de mercadoria**. O celular
 lê a chave de acesso com a câmera, o painel no desktop busca fornecedor e produtos,
-e cada produto vira uma linha pronta para colar na planilha de controle.
+e cada produto vira uma linha pronta para colar na planilha de controle. Se
+precisar do documento, o XML e o PDF da nota saem do próprio painel.
 
 ## O problema
 
@@ -22,6 +23,7 @@ nota não informa.
 3. O operador enquadra a chave na faixa verde e toca em **Capturar chave**.
 4. A nota aparece no painel com CNPJ, número, fornecedor e produtos.
 5. Ele informa fabricação e validade e clica em **Gerar linha**.
+6. Quando precisa arquivar a nota, usa **Baixar XML** ou **Baixar PDF**.
 
 ![linha do produto copiada](../shots/02-linha-planilha.png)
 
@@ -35,6 +37,9 @@ nota não informa.
   nota selecionada.
 - **Consulta com fallback**: XML da nota por uma API primária e, se ela falhar ou
   demorar mais de 15 s, por uma segunda. O nome do fornecedor vem da ReceitaWS.
+- **Download do XML e do PDF (DANFE)** pela mesma consulta, sem chamada extra: o
+  XML sai com os bytes recebidos e o botão do PDF fica desabilitado quando a
+  consulta não o entrega.
 - **Linha da planilha** separada por tabulação: chave, produto, data de
   recebimento, quantidade, fornecedor, fabricação, validade e número da NF.
 - **Busca manual** pela chave digitada, sem celular, no mesmo fluxo das leituras,
@@ -46,7 +51,7 @@ nota não informa.
 
 ## Qualidade
 
-- 120 testes JavaScript (116 passam e 4 ficam em `skip`, documentando bugs
+- 125 testes JavaScript (121 passam e 4 ficam em `skip`, documentando bugs
   conhecidos) executam as páginas reais em jsdom, simulando só PeerJS, `fetch`,
   clipboard, câmera, OCR e relógio.
 - 5 testes Python cobrem o script auxiliar de consulta.

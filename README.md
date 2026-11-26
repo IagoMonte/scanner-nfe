@@ -27,6 +27,7 @@ no computador e cole a linha na planilha**.
 - **Busca manual** pela chave digitada, quando não houver celular à mão.
 - Segunda API como **fallback** quando a consulta principal falha ou demora.
 - Linha separada por tabulação, pronta para o Excel.
+- Download do **XML** e do **PDF (DANFE)** de cada nota.
 - Suíte automática que testa as páginas reais, com teste de mutação.
 
 ### Telas
@@ -151,6 +152,7 @@ python3 tests/sanity.py     # quebra o código de propósito e exige que os test
 | `tests/viewer.queue.test.js` | fila de 1s entre consultas e auto-exclusão de 15s |
 | `tests/viewer.ui.test.js` | cards por estado, seleção, inputs e a linha da planilha |
 | `tests/viewer.manual.test.js` | busca manual da chave (formato, duplicata, sem celular) |
+| `tests/viewer.download.test.js` | download do XML e do PDF: bytes originais, nota certa, PDF ausente |
 | `tests/viewer.pin.test.js` | modal do PIN no painel e erros de conexão |
 | `tests/viewer.security.test.js` | dados externos exibidos como texto, chave validada, queda da conexão |
 | `tests/phone.conn.test.js` | um painel por vez no celular e reconexão |
@@ -172,8 +174,8 @@ O `viewer.js` chama os endpoints abaixo, todos resolvidos pelo Nginx (ver `deplo
 
 | Caminho local | Destino remoto | Uso |
 |---|---|---|
-| `POST /api/nfe/` | `consultadanfe.com/api/v1/consulta` | XML da nota (produtos) |
-| `GET /api/nfe/fallback/{chave}` | `api.danferapida.com.br/...` | Fallback do XML |
+| `POST /api/nfe/` | `consultadanfe.com/api/v1/consulta` | XML (produtos) e PDF da nota |
+| `GET /api/nfe/fallback/{chave}` | `api.danferapida.com.br/...` | Fallback do XML e do PDF |
 | `GET /receita/v1/cnpj/{cnpj}` | `receitaws.com.br` | Nome do fornecedor |
 
 > O painel usa **URLs relativas** (`src/viewer/config.js`): o site precisa ser

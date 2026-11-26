@@ -4,6 +4,8 @@ O projeto vinha de um servidor próprio e entrou no git em outubro de 2026.
 
 ## 2026-11-26
 
+- **Download da nota** — botões para baixar o XML e o PDF (DANFE) no cartão de
+  cada nota válida.
 - **Celular redesenhado** — mesma identidade do painel, status colorido por estado,
   botão fixo no rodapé e CSS próprio no lugar do Tailwind.
 - **Área verde fiel ao OCR** — a faixa na tela passa a ter o tamanho do recorte lido.

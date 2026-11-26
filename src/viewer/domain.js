@@ -14,7 +14,8 @@ function criarScan(chave) {
     createdAt: Date.now(),
     deleteAt: null,
     deleteTimer: null,
-    produtos: []
+    produtos: [],
+    documentos: null
   };
 
   scans.unshift(scan);
@@ -82,7 +83,7 @@ async function processScan(data) {
   try {
     const [fornecedor, produtos] = await Promise.all([
       buscarFornecedor(scan.cnpj),
-      produtosbyxml(data.key)
+      produtosbyxml(data.key, scan)
     ]);
 
     if (!fornecedor) {

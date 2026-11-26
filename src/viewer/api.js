@@ -2,7 +2,7 @@
 // src/viewer/api.js — consulta do XML da nota (primária + fallback) e do CNPJ
 // ============================================================================
 
-/** API primária: devolve o XML em base64 (timeout e erro acionam o fallback). */
+/** API primária: devolve XML e PDF em base64 (timeout e erro acionam o fallback). */
 async function obterXMLPrimaria(chaveacesso) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_CONSULTA_MS);
@@ -24,14 +24,19 @@ async function obterXMLPrimaria(chaveacesso) {
       throw new Error('Resposta inválida da API primária.');
     }
 
-    return atob(jsonRes.xml_base64);
+    return {
+      texto: atob(jsonRes.xml_base64),
+      // arquivo para download: bytes originais (a nota é assinada)
+      xml: base64ParaBlob(jsonRes.xml_base64, 'application/xml'),
+      pdf: base64ParaBlob(jsonRes.pdf_base64, 'application/pdf')
+    };
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
 
-/** Fallback proxyado (mesma origem): devolve o XML puro dentro de "xmlCode". */
+/** Fallback proxyado (mesma origem): XML puro em "xmlCode" e PDF em "base64Code". */
 async function obterXMLFallback(chaveacesso) {
   const fallbackRes = await fetch(`${API_NFE_FALLBACK_URL}${chaveacesso}`, {
     method: 'GET'
@@ -43,7 +48,11 @@ async function obterXMLFallback(chaveacesso) {
 
   const fallbackData = await fallbackRes.json();
   if (fallbackData && fallbackData.xmlCode) {
-    return fallbackData.xmlCode;
+    return {
+      texto: fallbackData.xmlCode,
+      xml: new Blob([fallbackData.xmlCode], { type: 'application/xml' }),
+      pdf: base64ParaBlob(fallbackData.base64Code, 'application/pdf')
+    };
   }
 
   throw new Error('Estrutura de resposta do fallback não contém xmlCode.');
@@ -84,22 +93,27 @@ function extrairProdutosDoXML(xmlString) {
 }
 
 
-/** Consulta primária + fallback e parser do XML até chegar na lista de produtos. */
-async function produtosbyxml(chaveacesso) {
-  let xmlString;
+/**
+ * Consulta primária + fallback e parser do XML até chegar na lista de produtos.
+ * Se receber o scan, guarda nele os arquivos da nota para download.
+ */
+async function produtosbyxml(chaveacesso, scan) {
+  let nota;
 
   try {
-    xmlString = await obterXMLPrimaria(chaveacesso);
+    nota = await obterXMLPrimaria(chaveacesso);
   } catch (error) {
     console.warn('Falha ou timeout na API primária, acionando fallback...', error.message);
-    xmlString = await obterXMLFallback(chaveacesso);
+    nota = await obterXMLFallback(chaveacesso);
   }
 
-  const produtos = extrairProdutosDoXML(xmlString);
+  const produtos = extrairProdutosDoXML(nota.texto);
 
   if (produtos.length === 0) {
     throw new Error('Nenhum produto encontrado no XML.');
   }
+
+  if (scan) scan.documentos = { xml: nota.xml, pdf: nota.pdf };
 
   return produtos;
 }

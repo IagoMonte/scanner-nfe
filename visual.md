@@ -59,6 +59,14 @@ CSS próprio inline (sem Tailwind); os tokens são repetidos no `:root` do phone
 - `.list-panel` passa a `grid-template-rows: auto auto 1fr` (cabeçalho + busca + lista); `.detail-panel` inalterado.
 - Link do modal: sem borda/fundo, `--muted`, sublinhado, `.86rem`, `cursor: pointer`; hover clareia para `--text`.
 
+## Downloads da nota (viewer) — spec
+
+- Local: card de nota válida, entre os dados (CNPJ/NF/Fornecedor) e os produtos.
+- `.doc-actions`: grid de 2 colunas iguais, `gap: 8px`.
+- Botões "Baixar XML" e "Baixar PDF": receita do botão primário (`.copy-btn`), `min-height: 44px`, hover com `brightness(1.08)`.
+- Sem o arquivo: botão desabilitado (`opacity: .45`, `cursor: not-allowed`) com `title` "PDF não disponível".
+- Cards em leitura ou com erro não têm os botões.
+
 ## Regras gerais
 - Nada de universos visuais novos: reusar paleta/borda/radius existentes de cada lado.
 - Códigos de status em `pt-BR`, minúsculas, como já usados.

@@ -57,7 +57,7 @@
     {
       "file": "shots/01-painel-notas.png",
       "caption": {
-        "pt": "painel conectado, com a lista de notas e o detalhe da nota selecionada"
+        "pt": "painel conectado: lista de notas, detalhe e download de XML e PDF"
       },
       "format": "desktop"
     },

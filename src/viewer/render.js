@@ -51,6 +51,16 @@ function cardErro(scan) {
 }
 
 
+/** Botões de download; sem arquivo, o botão fica desabilitado e diz o motivo. */
+function botoesDownload(scan) {
+  return ['xml', 'pdf'].map(tipo => {
+    const nome = tipo.toUpperCase();
+    const indisponivel = scan.documentos?.[tipo] ? '' : `disabled title="${nome} não disponível"`;
+    return `<button class="copy-btn download-btn" data-scan-id="${scan.id}" data-tipo="${tipo}" ${indisponivel}>Baixar ${nome}</button>`;
+  }).join('');
+}
+
+
 function cardSucesso(scan) {
   const produtosHtml = scan.produtos.map(produto => {
     const quantidadeTexto = [produto.quantidade, produto.unidade].filter(Boolean).join(' ');
@@ -79,6 +89,7 @@ function cardSucesso(scan) {
         <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
         <div class="meta-box wide"><div class="label">Fornecedor</div><div class="value">${escaparHTML(scan.fornecedor || 'Não encontrado')}</div></div>
       </div>
+      <div class="doc-actions">${botoesDownload(scan)}</div>
       <div class="products">${produtosHtml || '<div class="error-box">Nenhum produto encontrado no XML.</div>'}</div>
       <div class="footer-note">Use "Gerar linha" para copiar o item no formato do Excel.</div>
     </article>

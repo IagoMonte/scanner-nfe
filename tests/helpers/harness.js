@@ -231,6 +231,19 @@ function createViewerApp() {
   const alerts = [];
   win.alert = (message) => alerts.push(message);
 
+  // jsdom não baixa arquivo: guarda o Blob de cada URL e o que o <a download> pediu.
+  const blobs = new Map();
+  const downloads = [];
+  win.URL.createObjectURL = (blob) => {
+    const url = `blob:teste/${blobs.size + 1}`;
+    blobs.set(url, blob);
+    return url;
+  };
+  win.URL.revokeObjectURL = () => {};
+  win.HTMLAnchorElement.prototype.click = function click() {
+    downloads.push({ nome: this.download, blob: blobs.get(this.href) });
+  };
+
   win.Peer = peer.Peer;
   win.eval(`${viewerJs}\n${VIEWER_EXPORTS}`);
 
@@ -245,6 +258,7 @@ function createViewerApp() {
     peer,
     fetch: fetchStub,
     clipboard,
+    downloads,
     alerts,
     /** Abre o canal P2P como o viewer faz: modal → digita o PIN → Conectar → conn abre. */
     connect(pin = '123456') {
