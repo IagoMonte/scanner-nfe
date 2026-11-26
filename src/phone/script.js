@@ -16,6 +16,14 @@ const captureBtn = document.getElementById("captureBtn");
 const lastKey = document.getElementById("last-key");
 const preview = document.getElementById("preview");
 const pinEl = document.getElementById("pin");
+const alvo = document.getElementById("alvo");
+
+// Faixa do vídeo entregue ao OCR; a área verde é desenhada a partir dela.
+const RECORTE_LARGURA = 0.92; // fração da largura do vídeo
+const RECORTE_ALTURA = 90;    // pixels do vídeo
+
+const PRAZO_ABERTURA_MS = 15000; // painel que não abre o canal nesse prazo é descartado
+const RECONEXAO_MS = 3000;       // espera antes de voltar ao servidor de sinalização
 
 // Texto + tom do selo (ok | wait | err), as mesmas cores de estado do viewer.
 function definirStatus(texto, tipo) {
@@ -25,31 +33,72 @@ function definirStatus(texto, tipo) {
 
 // ===== CONEXÃO =====
 // O PIN gerado aqui É o PeerID da sessão do celular: quem digitar esse número
-// no viewer conecta; quem não souber, não alcança este peer.
+// no viewer conecta. O celular atende um painel por vez. O PIN evita conexões
+// cruzadas, mas não é autenticação forte.
 
 let conn = null;
 let peer = null;
 
 function novoPIN() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    const [sorteio] = crypto.getRandomValues(new Uint32Array(1));
+    return String(100000 + (sorteio % 900000));
 }
 
 function iniciarPeer(pin) {
-    peer = new Peer(pin);
+    const atual = new Peer(pin);
+    peer = atual;
 
-    peer.on("connection", connection => {
-        conn = connection;
-        definirStatus("viewer conectado", "ok");
+    peer.on("connection", atenderViewer);
+    peer.on("open", () => {
+        if (status.textContent === "erro de conexão") definirStatus("conexão restabelecida", "ok");
     });
+    peer.on("disconnected", () => setTimeout(() => {
+        if (atual === peer && !atual.destroyed && atual.disconnected) atual.reconnect();
+    }, RECONEXAO_MS));
 
     // PIN já em uso por outro peer no servidor: gera outro e a tela atualiza.
     peer.on("error", err => {
         if (err && err.type === "unavailable-id") {
             iniciarPeer(novoPIN());
+            return;
         }
+        // com um painel já ligado (P2P), a queda do servidor não interrompe o uso
+        if (!conn?.open) definirStatus("erro de conexão", "err");
     });
 
     pinEl.innerText = pin;
+}
+
+function atenderViewer(connection) {
+    // Já há um painel: o recém-chegado é desligado assim que o canal abre.
+    if (conn) {
+        connection.on("open", () => connection.close());
+        return;
+    }
+
+    conn = connection;
+    definirStatus("conectando viewer...", "wait");
+
+    // Painel morto nem sempre emite "close": prazo de abertura e estado do WebRTC
+    // também liberam o celular para o próximo.
+    const liberar = () => {
+        if (conn !== connection) return;
+        conn = null;
+        clearTimeout(prazo);
+        definirStatus("viewer desconectado", "err");
+        connection.close();
+    };
+    const prazo = setTimeout(liberar, PRAZO_ABERTURA_MS);
+
+    connection.on("open", () => {
+        clearTimeout(prazo);
+        definirStatus("viewer conectado", "ok");
+    });
+    connection.on("close", liberar);
+    connection.on("error", liberar);
+    connection.peerConnection?.addEventListener("connectionstatechange", () => {
+        if (connection.peerConnection?.connectionState === "failed") liberar();
+    });
 }
 
 iniciarPeer(novoPIN());
@@ -69,7 +118,7 @@ async function startCamera() {
         });
 
         video.srcObject = stream;
-        definirStatus("câmera pronta", "ok");
+        definirStatus(conn?.open ? "viewer conectado" : "câmera pronta", "ok");
     } catch (err) {
         console.error(err);
         definirStatus("erro câmera", "err");
@@ -82,10 +131,10 @@ function captureFrame() {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
 
-    const cropWidth = vw * 0.92;
-    const cropHeight = 90;
+    const cropWidth = vw * RECORTE_LARGURA;
+    const cropHeight = RECORTE_ALTURA;
     const cropX = (vw - cropWidth) / 2;
-    const cropY = (vh / 2) - 45;
+    const cropY = (vh / 2) - (cropHeight / 2);
 
     canvas.width = cropWidth;
     canvas.height = cropHeight;
@@ -104,10 +153,21 @@ function preprocess() {
     preview.src = canvas.toDataURL("image/png");
 }
 
+// Desenha a área verde com o tamanho que o recorte ocupa na tela. O vídeo usa
+// object-fit: cover, então a escala é a maior das duas razões tela/vídeo.
+function ajustarMira() {
+    const { videoWidth, videoHeight, clientWidth, clientHeight } = video;
+    if (!videoWidth || !videoHeight || !clientWidth) return;
+
+    const escala = Math.max(clientWidth / videoWidth, clientHeight / videoHeight);
+    alvo.style.width = `${videoWidth * RECORTE_LARGURA * escala}px`;
+    alvo.style.height = `${RECORTE_ALTURA * escala}px`;
+}
+
 // ===== OCR =====
 
 async function processOCR() {
-    if (!conn) {
+    if (!conn?.open) {
         alert("viewer não conectado");
         return;
     }
@@ -139,6 +199,14 @@ async function processOCR() {
             const key = match[0];
 
             console.log("CHAVE:", key);
+            lastKey.innerText = key;
+
+            // o painel pode ter caído enquanto o OCR rodava
+            if (!conn?.open) {
+                definirStatus("chave não enviada", "err");
+                navigator.vibrate?.(100);
+                return;
+            }
 
             conn.send({
                 type: "nfe",
@@ -146,7 +214,6 @@ async function processOCR() {
                 image: canvas.toDataURL("image/jpeg", 0.7)
             });
 
-            lastKey.innerText = key;
             definirStatus("chave enviada", "ok");
             navigator.vibrate?.(300);
         } else {
@@ -163,4 +230,7 @@ async function processOCR() {
 
 // ===== BOOT =====
 captureBtn.onclick = processOCR;
+video.addEventListener("loadedmetadata", ajustarMira);
+video.addEventListener("resize", ajustarMira); // câmera mudou de orientação
+window.addEventListener("resize", ajustarMira);
 startCamera();

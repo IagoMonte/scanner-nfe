@@ -34,9 +34,11 @@ CSS próprio inline (sem Tailwind); os tokens são repetidos no `:root` do phone
 - Layout: coluna única, `max-width: 520px`, `gap: 12px`, na ordem: cabeçalho + status → PIN → câmera → recorte e última leitura → botão.
 - **Status pill** igual à do viewer, com cor por estado em `data-tipo`: `ok` verde (câmera pronta, viewer conectado, chave enviada), `wait` âmbar (iniciando câmera, lendo chave), `err` vermelho (erro de câmera/OCR, faltando dígitos). Texto e tom mudam juntos via `definirStatus()`.
 - PIN: painel com borda verde `.26`, número `2.4rem` peso 900, tracking `.3em`, fundo de input `#0b130f`.
-- Câmera: largura 100%, `max-height: 36dvh` com `object-fit: cover` (corta só em cima/embaixo; nunca nas laterais, senão a área verde deixa de coincidir com o recorte do OCR).
-- Mira: faixa 92% × 90px centralizada, borda verde, radius 14px, linha central pulsante (parada com `prefers-reduced-motion`), fora dela escurecido. Nada escrito sobre a imagem; a instrução fica no cabeçalho.
+- Câmera: largura 100%, `max-height: 36dvh` com `object-fit: cover`.
+- Mira (`#alvo`): centralizada, com **o tamanho exato do recorte do OCR** (92% × 90px do vídeo, convertidos para a tela por `ajustarMira()`; é uma faixa fina). Contorno verde por fora (`outline`), pulsante (parado com `prefers-reduced-motion`), fora dela escurecido. Nada desenhado sobre a área lida; a instrução fica no cabeçalho.
+- Estados de conexão: "conectando viewer..." (wait), "viewer conectado" e "conexão restabelecida" (ok), "viewer desconectado", "chave não enviada" e "erro de conexão" (err).
 - Botão "Capturar chave": gradiente verde do botão primário, texto `#06210f`, peso 900, **fixo no rodapé** (`sticky`, respeita `safe-area-inset-bottom`).
+- Telas baixas (`max-height: 700px`): topo compacto, sem o texto de apoio do PIN. Até `500px` (deitado): câmera antes do cabeçalho.
 
 ## Modal do PIN (viewer) — spec
 
@@ -44,8 +46,8 @@ CSS próprio inline (sem Tailwind); os tokens são repetidos no `:root` do phone
   fundo `rgba(5,8,6,.55)` + **`backdrop-filter: blur(10px)`** (com `-webkit-`) para esconder o fundo.
 - Card: mesma receita dos painéis (gradiente de surface + borda `--border` + `--shadow` + radius 22px), largura `min(360px, 92vw)`.
 - Conteúdo: título, subtítulo em `--muted`, input centralizado do PIN (font-size grande, peso 900, letter-spacing largo, estilo de input do tema), botão primário verde de 12px radius, caixa de erro vermelha (mesma receita de `.error-box`), link discreto "ou buscar chave manualmente".
-- Segurança: modal **bloqueado** até conectar ou pular para a busca manual (sem botão fechar). O pular (link) **não toca no peer** — só esconde o modal e foca o campo; status segue "conectando...".
-- Erros: PIN fora do formato (6 dígitos numéricos) e `peer-unavailable` (PIN errado/celular ausente) exibidos em vermelho dentro do modal; modal volta a ficar visível no `peer-unavailable`.
+- Segurança: sem botão fechar. O modal sai ao tentar conectar com PIN válido ou ao pular para a busca manual, e volta se o celular não for encontrado ou a conexão for encerrada. O pular (link) **não toca no peer** — só esconde o modal e foca o campo; status segue "conectando...".
+- Erros em vermelho dentro do modal: PIN fora do formato (6 dígitos numéricos), painel ainda sem ligação com o servidor, `peer-unavailable` (PIN errado/celular ausente), sem resposta em 15s e conexão encerrada (nos dois últimos o status vira "desconectado").
 
 ## Busca manual de chave (viewer) — spec
 

@@ -1,0 +1,5 @@
+# Dependências do api.py (script auxiliar; o painel não usa)
+undetected-chromedriver
+selenium
+# o undetected-chromedriver ainda importa distutils, removido no Python 3.12
+setuptools

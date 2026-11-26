@@ -13,11 +13,12 @@
 //   artefato e roda os testes sem rebuild). Concatenar é o KISS possível aqui:
 //   módulos reais em arquivos, virando um único script no escopo top-level.
 //
-// Regras de contrato validadas aqui (falha alto se quebrarem):
-//   - nomes/estado top-level exigidos pelo harness (declaração de função/let solta);
+// Contrato validado aqui (falha alto se quebrar):
 //   - literais mutados pelo sanity, cada um aparecendo EXATAMENTE 1x no artefato
 //     (a mutação troca só a 1ª ocorrência — nunca colocar esses trechos em
 //     comentários ou strings).
+// Os nomes top-level exigidos pelo harness (função/let solta) não são checados
+// aqui: quem os cobra é a própria suíte.
 // ============================================================================
 
 'use strict';

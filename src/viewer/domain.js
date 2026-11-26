@@ -63,7 +63,7 @@ function adicionarLinhaPlanilha(scan, produto, fornecedor) {
 
 
 async function processScan(data) {
-  if (!data || data.type !== 'nfe') return;
+  if (!data || data.type !== 'nfe' || !chaveValida(data.key)) return;
 
   // Evita duplicidade estrita: se já existe um scan com esta chave na lista, ignora
   const jaExiste = scans.some(s => s.key === data.key);

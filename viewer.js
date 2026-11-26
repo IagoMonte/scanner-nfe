@@ -16,6 +16,8 @@ const API_RECEITA_URL = '/receita/v1/cnpj/';
 const TIMEOUT_CONSULTA_MS = 15000;        // teto da API primária antes de cair no fallback
 const INTERVALO_ENTRE_NOTAS_MS = 1000;    // ritmo anti-429 entre consultas
 const TTL_CARD_ERRO_MS = 15000;           // vida de um card de erro (timer de remoção)
+const TIMEOUT_CONEXAO_MS = 15000;         // prazo para o canal com o celular abrir
+const RECONEXAO_MS = 3000;                // espera antes de voltar ao servidor de sinalização
 
 const TEXTO_ESTADO_VAZIO = 'As notas recebidas aparecem na lista lateral. Ao selecionar uma, o card completo abre aqui.';
 
@@ -74,6 +76,18 @@ function validarCNPJ(cnpj) {
   const dig1 = calcularDigito(base, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
   const dig2 = calcularDigito(base + dig1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
   return limpo === `${base}${dig1}${dig2}`;
+}
+
+
+/** Todo texto de fora (nota, consulta, celular) passa por aqui antes de virar HTML. */
+function escaparHTML(valor) {
+  const entidades = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(valor ?? '').replace(/[&<>"']/g, (c) => entidades[c]);
+}
+
+
+function chaveValida(chave) {
+  return typeof chave === 'string' && /^\d{44}$/.test(chave);
 }
 
 
@@ -319,7 +333,7 @@ function adicionarLinhaPlanilha(scan, produto, fornecedor) {
 
 
 async function processScan(data) {
-  if (!data || data.type !== 'nfe') return;
+  if (!data || data.type !== 'nfe' || !chaveValida(data.key)) return;
 
   // Evita duplicidade estrita: se já existe um scan com esta chave na lista, ignora
   const jaExiste = scans.some(s => s.key === data.key);
@@ -455,7 +469,7 @@ function cabecalhoCard(scan) {
     <div class="card-top">
       <div>
         <div class="label">Chave NF-e</div>
-        <div class="code">${scan.key}</div>
+        <div class="code">${escaparHTML(scan.key)}</div>
       </div>
       <span class="mini-tag ${getStatusClass(scan.status)}">${getStatusLabel(scan.status)}</span>
     </div>
@@ -469,8 +483,8 @@ function cardCarregando(scan) {
       ${cabecalhoCard(scan)}
       <div class="loading-bar"><span></span></div>
       <div class="meta">
-        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${scan.cnpj}</div></div>
-        <div class="meta-box"><div class="label">NF</div><div class="value">${scan.notaFiscal || '-'}</div></div>
+        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${escaparHTML(scan.cnpj)}</div></div>
+        <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
       </div>
       <div class="footer-note">Buscando fornecedor e produtos.</div>
     </article>
@@ -485,10 +499,10 @@ function cardErro(scan) {
     <article class="scan-card error">
       ${cabecalhoCard(scan)}
       <div class="meta">
-        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${scan.cnpj || 'inválido'}</div></div>
-        <div class="meta-box"><div class="label">NF</div><div class="value">${scan.notaFiscal || '-'}</div></div>
+        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${escaparHTML(scan.cnpj || 'inválido')}</div></div>
+        <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
       </div>
-      <div class="error-box">${scan.errorMessage}</div>
+      <div class="error-box">${escaparHTML(scan.errorMessage)}</div>
       <div class="footer-note" style="display: flex; justify-content: space-between; align-items: center;">
         <span>${contador !== null ? `Exclusão automática em ${contador}s.` : 'Erro mantido para conferência.'}</span>
         <button class="manual-delete-btn" data-scan-id="${scan.id}" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">Apagar Card</button>
@@ -505,13 +519,13 @@ function cardSucesso(scan) {
       <div class="product-item">
         <div class="product-head">
           <div>
-            <div class="product-name">${produto.nome}</div>
-            <div class="qty">Quantidade: ${quantidadeTexto || 'não informada'}</div>
+            <div class="product-name">${escaparHTML(produto.nome)}</div>
+            <div class="qty">Quantidade: ${escaparHTML(quantidadeTexto || 'não informada')}</div>
           </div>
         </div>
         <div class="product-fields">
-          <input type="date" class="fabricacao-input" data-index="${produto.indexTabela}" value="${produto.fabricacao || ''}" />
-          <input type="number" min="0" class="validade-input" data-index="${produto.indexTabela}" value="${produto.validadeMeses || ''}" placeholder="Validade (meses)" />
+          <input type="date" class="fabricacao-input" data-index="${produto.indexTabela}" value="${escaparHTML(produto.fabricacao || '')}" />
+          <input type="number" min="0" class="validade-input" data-index="${produto.indexTabela}" value="${escaparHTML(produto.validadeMeses || '')}" placeholder="Validade (meses)" />
           <button class="copy-btn generate-line-btn" data-index="${produto.indexTabela}">Gerar linha</button>
         </div>
       </div>
@@ -522,9 +536,9 @@ function cardSucesso(scan) {
     <article class="scan-card success">
       ${cabecalhoCard(scan)}
       <div class="meta">
-        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${scan.cnpj}</div></div>
-        <div class="meta-box"><div class="label">NF</div><div class="value">${scan.notaFiscal || '-'}</div></div>
-        <div class="meta-box wide"><div class="label">Fornecedor</div><div class="value">${scan.fornecedor || 'Não encontrado'}</div></div>
+        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${escaparHTML(scan.cnpj)}</div></div>
+        <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
+        <div class="meta-box wide"><div class="label">Fornecedor</div><div class="value">${escaparHTML(scan.fornecedor || 'Não encontrado')}</div></div>
       </div>
       <div class="products">${produtosHtml || '<div class="error-box">Nenhum produto encontrado no XML.</div>'}</div>
       <div class="footer-note">Use "Gerar linha" para copiar o item no formato do Excel.</div>
@@ -548,10 +562,10 @@ function renderLista() {
       <button class="list-item ${ativo} ${erro}" data-scan-id="${scan.id}">
         <div class="list-top">
           <span class="mini-tag ${getStatusClass(scan.status)}">${getStatusLabel(scan.status)}</span>
-          ${contador !== null ? `<span class="timer">apaga em ${contador}s</span>` : `<span class="timer">NF ${scan.notaFiscal || '-'}</span>`}
+          ${contador !== null ? `<span class="timer">apaga em ${contador}s</span>` : `<span class="timer">NF ${escaparHTML(scan.notaFiscal || '-')}</span>`}
         </div>
-        <div class="list-code">${scan.key}</div>
-        <div class="footer-note">${scan.fornecedor || scan.errorMessage || 'Aguardando consulta.'}</div>
+        <div class="list-code">${escaparHTML(scan.key)}</div>
+        <div class="footer-note">${escaparHTML(scan.fornecedor || scan.errorMessage || 'Aguardando consulta.')}</div>
       </button>
     `;
   }).join('');
@@ -675,12 +689,30 @@ setInterval(() => {
 // conexão parte do viewer (ninguém invade o peer do outro).
 // ============================================================================
 
-const peer = new Peer();
+// Com ID próprio o PeerJS tenta reconectar mesmo se o servidor falhar já na
+// abertura; sem ele, o peer é destruído e só recarregar resolve.
+const peer = new Peer(`painel-${Math.random().toString(36).slice(2, 12)}`);
+let conexaoAtual = null;
+
+// Ao fechar ou recarregar a página, avisa o celular para ele aceitar o próximo.
+window.addEventListener('pagehide', () => peer.destroy());
+// Voltando pelo histórico a página vem do cache com o peer destruído: recarrega.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) window.location.reload();
+});
+
+peer.on('disconnected', () => setTimeout(() => {
+  if (!peer.destroyed && peer.disconnected) peer.reconnect();
+}, RECONEXAO_MS));
 
 // PIN não existe / celular fora do ar no momento da tentativa:
 // o modal volta com o aviso para um novo PIN.
 peer.on('error', (err) => {
+  // com o canal aberto, um aviso atrasado de outra tentativa não vale mais
+  if (conexaoAtual?.open) return;
+
   if (err && err.type === 'peer-unavailable') {
+    conexaoAtual = null; // a tentativa acabou: o prazo dela não troca o aviso
     pinError.innerText = 'PIN errado ou celular não encontrado.';
     pinError.hidden = false;
     pinModal.hidden = false;
@@ -688,6 +720,8 @@ peer.on('error', (err) => {
 });
 
 function tentarConectar() {
+  if (pinModal.hidden) return; // já há uma tentativa em andamento
+
   const pin = pinInput.value.trim();
 
   if (!/^\d{6}$/.test(pin)) {
@@ -696,17 +730,50 @@ function tentarConectar() {
     return;
   }
 
+  // Antes de o painel se registrar no servidor o pedido se perde sem erro algum.
+  if (!peer.open) {
+    pinError.innerText = 'Ainda sem ligação com o servidor. Tente de novo em instantes.';
+    pinError.hidden = false;
+    return;
+  }
+
   pinError.hidden = true;
 
   const conn = peer.connect(pin);
+  conexaoAtual = conn;
+
+  // Celular caiu, não respondeu ou recusou: nunca seguir "conectado".
+  const encerrar = (motivo) => {
+    if (conn !== conexaoAtual) return;
+    conexaoAtual = null;
+    clearTimeout(prazo);
+    status.innerText = 'desconectado';
+    loading.innerText = 'Conexão com o celular encerrada.';
+    pinError.innerText = motivo;
+    pinError.hidden = false;
+    pinModal.hidden = false;
+    conn.close();
+  };
+  const caiu = () => encerrar('Conexão encerrada ou perdida. O celular pode estar em uso por outro painel.');
+  const prazo = setTimeout(
+    () => encerrar('Sem resposta do celular. Confira o PIN e tente de novo.'),
+    TIMEOUT_CONEXAO_MS
+  );
+
+  conn.on('close', caiu);
+  conn.on('error', caiu);
+  conn.peerConnection?.addEventListener('connectionstatechange', () => {
+    if (conn.peerConnection?.connectionState === 'failed') caiu();
+  });
 
   conn.on('open', () => {
+    clearTimeout(prazo);
     status.innerText = 'conectado';
     loading.innerText = 'Pronto para receber novas leituras.';
   });
 
   conn.on('data', async (data) => {
-    if (data.type === 'nfe') {
+    if (data && data.type === 'nfe') {
       pendingScans.push(data);
       processNextScan();
     }

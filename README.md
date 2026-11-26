@@ -17,7 +17,7 @@ de cada item. O Scanner NF-e encurta esse caminho: **aponte o celular, receba a 
 no computador e cole a linha na planilha**.
 
 1. **Conecte** — o celular mostra um PIN de 6 dígitos; digite-o no painel.
-2. **Capture** — alinhe a chave de acesso na linha verde; o OCR roda no aparelho.
+2. **Capture** — enquadre a chave de acesso na faixa verde; o OCR roda no aparelho.
 3. **Confira** — CNPJ, número da nota, fornecedor e produtos aparecem no painel.
 4. **Exporte** — informe fabricação e validade e clique em **Gerar linha**.
 
@@ -39,7 +39,8 @@ no computador e cole a linha na planilha**.
 
 <img src="im-hub/shots/05-celular-leitura.png" alt="App do celular após a leitura da chave" width="320">
 
-> As imagens usam dados e documento fictícios.
+> Fornecedores, produtos e o documento das imagens são fictícios; a chave de acesso
+> e o CNPJ são de exemplo.
 
 ## Como funciona
 
@@ -92,8 +93,8 @@ npm test         # build + suíte JS
 ```
 
 Os artefatos são mantidos versionados porque a hospedagem é estática (ver
-`deploy/`). O build falha alto se os nomes/literais que os testes consomem
-(`tests/helpers/harness.js` e `tests/sanity.py`) estiverem fora do contrato.
+`deploy/`). O build falha se os trechos de código que o `tests/sanity.py` muta não
+aparecerem exatamente uma vez.
 
 ## Arquivos
 
@@ -122,8 +123,9 @@ npx serve .
 Abra `viewer.html` no desktop e `phone.html` no celular (mesmo domínio/porta). Num
 aparelho diferente da máquina que serve as páginas, a câmera só funciona por HTTPS.
 O celular gera um **PIN de 6 dígitos** (que é o PeerID da sessão) e o exibe na
-tela; no desktop, digite esse PIN no modal e clique **Conectar**. Sem o PIN,
-nenhuma conexão acontece — cada celular só aceita quem souber o seu PIN.
+tela; no desktop, digite esse PIN no modal e clique **Conectar**. O celular atende
+um painel por vez e recusa os demais. O PIN evita conexões cruzadas, mas **não é
+autenticação forte**: são 6 dígitos num servidor público de sinalização.
 
 ## Testes
 
@@ -131,6 +133,8 @@ A suíte cobre a lógica de ponta a ponta **sem reescrever nada**: os testes
 carregam `viewer.html`, `viewer.js` e o script do `phone.html` reais dentro de um
 jsdom, controlando só as fronteiras externas (PeerJS, `fetch` das APIs,
 clipboard e relógio). Serve de rede de segurança para a refatoração.
+
+Requer **Node.js 22.22.2+, 24.15+ ou 26+** (exigência do jsdom) e Python 3.10+.
 
 ```bash
 npm install                 # só jsdom (dev)
@@ -148,6 +152,11 @@ python3 tests/sanity.py     # quebra o código de propósito e exige que os test
 | `tests/viewer.ui.test.js` | cards por estado, seleção, inputs e a linha da planilha |
 | `tests/viewer.manual.test.js` | busca manual da chave (formato, duplicata, sem celular) |
 | `tests/viewer.pin.test.js` | modal do PIN no painel e erros de conexão |
+| `tests/viewer.security.test.js` | dados externos exibidos como texto, chave validada, queda da conexão |
+| `tests/phone.conn.test.js` | um painel por vez no celular e reconexão |
+| `tests/phone.mira.test.js` | área verde igual ao recorte lido pelo OCR |
+| `tests/viewer.queda.test.js` | prazo de conexão, queda do celular e reconexão no painel |
+| `tests/phone.queda.test.js` | painel que some sem avisar, envio perdido e reconexão |
 | `tests/phone.ocr.test.js` | câmera, recorte da área verde, extração da chave, envio |
 | `tests/phone.pin.test.js` | geração do PIN e colisão no celular |
 | `tests/phone.status.test.js` | cor do status do celular por estado |
@@ -166,28 +175,36 @@ O `viewer.js` chama os endpoints abaixo, todos resolvidos pelo Nginx (ver `deplo
 | `POST /api/nfe/` | `consultadanfe.com/api/v1/consulta` | XML da nota (produtos) |
 | `GET /api/nfe/fallback/{chave}` | `api.danferapida.com.br/...` | Fallback do XML |
 | `GET /receita/v1/cnpj/{cnpj}` | `receitaws.com.br` | Nome do fornecedor |
-| `GET /danfe/...` | `ws.meudanfe.com.br` | Consulta DANFE (o painel não usa; o `api.py` acessa o site direto) |
 
 > O painel usa **URLs relativas** (`src/viewer/config.js`): o site precisa ser
 > servido com o proxy do Nginx na **mesma origem**. Num servidor estático local a
 > página abre, mas as consultas de nota e fornecedor falham. No config de exemplo,
-> troque `example.com`, `site-user` e o endereço do `/localapi/` pelos seus.
+> troque `example.com` e `site-user` pelos seus.
 
 ## api.py
 
 Script independente que automatiza o meudanfe.com.br com `undetected_chromedriver`:
 
 ```bash
-pip install undetected-chromedriver selenium
+pip install -r requirements.txt   # exige Google Chrome instalado
 python api.py <chave_de_acesso_44_digitos>
 ```
 
-Imprime no stdout a resposta do DANFE para a chave informada.
+Imprime no stdout a resposta do DANFE para a chave informada. Se o Chrome instalado
+não for o mais recente, informe a versão principal: `CHROME_MAJOR=148 python api.py ...`.
 
 ## Implantação
 
 O Nginx do CloudPanel serve os arquivos estáticos e faz o proxy das APIs.
 O config de referência está em `deploy/nginx.conf.example`.
+
+Publique na raiz do site **apenas** `viewer.html`, `viewer.js` e `phone.html` (não o
+repositório inteiro).
+
+As rotas de consulta aceitam só o método e o caminho que o painel usa, não liberam
+CORS e têm limite de taxa. Isso **não autentica ninguém**: restrinja o acesso ao
+servidor (há um `allow`/`deny` comentado no exemplo) para que terceiros não gastem
+a sua cota de consultas.
 
 A API key do fallback (danferapida) **não** fica no config versionado — ver
 `deploy/secrets/danferapida.key.conf.example`.

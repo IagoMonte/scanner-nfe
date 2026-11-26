@@ -19,7 +19,7 @@ nota não informa.
 
 1. O celular abre o app e exibe um **PIN de 6 dígitos**.
 2. O desktop digita o PIN no painel e os dois se conectam.
-3. O operador alinha a chave na linha verde e toca em **Capturar chave**.
+3. O operador enquadra a chave na faixa verde e toca em **Capturar chave**.
 4. A nota aparece no painel com CNPJ, número, fornecedor e produtos.
 5. Ele informa fabricação e validade e clica em **Gerar linha**.
 
@@ -27,10 +27,10 @@ nota não informa.
 
 ## O que foi construído
 
-- **OCR no próprio celular** (Tesseract.js) sobre o recorte da faixa mirada, com
-  prévia do recorte e status colorido por estado.
-- **Conexão P2P por PIN**: o PIN é o identificador da sessão do celular, então o
-  painel só se liga ao aparelho cujo número foi digitado.
+- **OCR no próprio celular** (Tesseract.js) sobre exatamente a área marcada na
+  tela, com prévia do recorte e status colorido por estado.
+- **Conexão P2P por PIN**: o PIN é o identificador da sessão do celular, que
+  atende um painel por vez.
 - **Painel de notas** com cartões por estado (lendo, válido, erro) e detalhe da
   nota selecionada.
 - **Consulta com fallback**: XML da nota por uma API primária e, se ela falhar ou
@@ -46,7 +46,7 @@ nota não informa.
 
 ## Qualidade
 
-- 81 testes JavaScript (77 passam e 4 ficam em `skip`, documentando bugs
+- 120 testes JavaScript (116 passam e 4 ficam em `skip`, documentando bugs
   conhecidos) executam as páginas reais em jsdom, simulando só PeerJS, `fetch`,
   clipboard, câmera, OCR e relógio.
 - 5 testes Python cobrem o script auxiliar de consulta.
@@ -73,4 +73,5 @@ funcionam, mas as consultas de nota e fornecedor não.
   escolhendo a janela errada de dígitos.
 - Validar o dígito verificador da chave (hoje só o CNPJ embutido é conferido).
 
-> Os prints usam fornecedores, produtos e um documento fictícios.
+> Fornecedores, produtos e o documento dos prints são fictícios; a chave de acesso
+> e o CNPJ são de exemplo.

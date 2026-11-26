@@ -8,7 +8,7 @@ function cabecalhoCard(scan) {
     <div class="card-top">
       <div>
         <div class="label">Chave NF-e</div>
-        <div class="code">${scan.key}</div>
+        <div class="code">${escaparHTML(scan.key)}</div>
       </div>
       <span class="mini-tag ${getStatusClass(scan.status)}">${getStatusLabel(scan.status)}</span>
     </div>
@@ -22,8 +22,8 @@ function cardCarregando(scan) {
       ${cabecalhoCard(scan)}
       <div class="loading-bar"><span></span></div>
       <div class="meta">
-        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${scan.cnpj}</div></div>
-        <div class="meta-box"><div class="label">NF</div><div class="value">${scan.notaFiscal || '-'}</div></div>
+        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${escaparHTML(scan.cnpj)}</div></div>
+        <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
       </div>
       <div class="footer-note">Buscando fornecedor e produtos.</div>
     </article>
@@ -38,10 +38,10 @@ function cardErro(scan) {
     <article class="scan-card error">
       ${cabecalhoCard(scan)}
       <div class="meta">
-        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${scan.cnpj || 'inválido'}</div></div>
-        <div class="meta-box"><div class="label">NF</div><div class="value">${scan.notaFiscal || '-'}</div></div>
+        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${escaparHTML(scan.cnpj || 'inválido')}</div></div>
+        <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
       </div>
-      <div class="error-box">${scan.errorMessage}</div>
+      <div class="error-box">${escaparHTML(scan.errorMessage)}</div>
       <div class="footer-note" style="display: flex; justify-content: space-between; align-items: center;">
         <span>${contador !== null ? `Exclusão automática em ${contador}s.` : 'Erro mantido para conferência.'}</span>
         <button class="manual-delete-btn" data-scan-id="${scan.id}" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">Apagar Card</button>
@@ -58,13 +58,13 @@ function cardSucesso(scan) {
       <div class="product-item">
         <div class="product-head">
           <div>
-            <div class="product-name">${produto.nome}</div>
-            <div class="qty">Quantidade: ${quantidadeTexto || 'não informada'}</div>
+            <div class="product-name">${escaparHTML(produto.nome)}</div>
+            <div class="qty">Quantidade: ${escaparHTML(quantidadeTexto || 'não informada')}</div>
           </div>
         </div>
         <div class="product-fields">
-          <input type="date" class="fabricacao-input" data-index="${produto.indexTabela}" value="${produto.fabricacao || ''}" />
-          <input type="number" min="0" class="validade-input" data-index="${produto.indexTabela}" value="${produto.validadeMeses || ''}" placeholder="Validade (meses)" />
+          <input type="date" class="fabricacao-input" data-index="${produto.indexTabela}" value="${escaparHTML(produto.fabricacao || '')}" />
+          <input type="number" min="0" class="validade-input" data-index="${produto.indexTabela}" value="${escaparHTML(produto.validadeMeses || '')}" placeholder="Validade (meses)" />
           <button class="copy-btn generate-line-btn" data-index="${produto.indexTabela}">Gerar linha</button>
         </div>
       </div>
@@ -75,9 +75,9 @@ function cardSucesso(scan) {
     <article class="scan-card success">
       ${cabecalhoCard(scan)}
       <div class="meta">
-        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${scan.cnpj}</div></div>
-        <div class="meta-box"><div class="label">NF</div><div class="value">${scan.notaFiscal || '-'}</div></div>
-        <div class="meta-box wide"><div class="label">Fornecedor</div><div class="value">${scan.fornecedor || 'Não encontrado'}</div></div>
+        <div class="meta-box"><div class="label">CNPJ</div><div class="value">${escaparHTML(scan.cnpj)}</div></div>
+        <div class="meta-box"><div class="label">NF</div><div class="value">${escaparHTML(scan.notaFiscal || '-')}</div></div>
+        <div class="meta-box wide"><div class="label">Fornecedor</div><div class="value">${escaparHTML(scan.fornecedor || 'Não encontrado')}</div></div>
       </div>
       <div class="products">${produtosHtml || '<div class="error-box">Nenhum produto encontrado no XML.</div>'}</div>
       <div class="footer-note">Use "Gerar linha" para copiar o item no formato do Excel.</div>
@@ -101,10 +101,10 @@ function renderLista() {
       <button class="list-item ${ativo} ${erro}" data-scan-id="${scan.id}">
         <div class="list-top">
           <span class="mini-tag ${getStatusClass(scan.status)}">${getStatusLabel(scan.status)}</span>
-          ${contador !== null ? `<span class="timer">apaga em ${contador}s</span>` : `<span class="timer">NF ${scan.notaFiscal || '-'}</span>`}
+          ${contador !== null ? `<span class="timer">apaga em ${contador}s</span>` : `<span class="timer">NF ${escaparHTML(scan.notaFiscal || '-')}</span>`}
         </div>
-        <div class="list-code">${scan.key}</div>
-        <div class="footer-note">${scan.fornecedor || scan.errorMessage || 'Aguardando consulta.'}</div>
+        <div class="list-code">${escaparHTML(scan.key)}</div>
+        <div class="footer-note">${escaparHTML(scan.fornecedor || scan.errorMessage || 'Aguardando consulta.')}</div>
       </button>
     `;
   }).join('');

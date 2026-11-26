@@ -1,3 +1,13 @@
+# Exemplo de implantação (nasceu num CloudPanel). Troque example.com, site-user e os
+# caminhos pelos seus. Fora do CloudPanel, remova o include de global_settings e o
+# formato de log "main" se o seu Nginx não os definir.
+#
+# As rotas de consulta aceitam só o formato que o painel usa e têm limite de taxa,
+# mas NÃO autenticam ninguém: quem alcançar o servidor consegue consultar, gastando
+# a sua cota. Restrinja o acesso (veja "allow/deny" no bloco server).
+
+limit_req_zone $binary_remote_addr zone=consultas:10m rate=5r/s;
+
 server {
   listen 80;
   listen [::]:80;
@@ -15,6 +25,12 @@ server {
   access_log /home/site-user/logs/nginx/access.log main;
   error_log /home/site-user/logs/nginx/error.log;
 
+  # Recomendado: libere só a rede de quem usa o painel (ou use auth_basic).
+  # allow 198.51.100.0/24;
+  # deny all;
+
+  limit_req_status 429;
+
   if ($scheme != "https") {
     rewrite ^ https://$host$request_uri permanent;
   }
@@ -24,7 +40,10 @@ server {
     allow all;
   }
 
-  
+  # nada de .git, .env e afins, mesmo que copiados para a raiz
+  location ~ /\.(?!well-known) {
+    deny all;
+  }
 
   include /etc/nginx/global_settings;
 
@@ -34,66 +53,41 @@ server {
     add_header 'Access-Control-Allow-Origin' 'https://example.com' always;
     add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
     add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
-    add_header Access-Control-Allow-Origin "*";
     add_header alt-svc 'h3=":443"; ma=86400';
     expires max;
     access_log off;
   }
-  location /receita/ {
 
-    proxy_pass https://www.receitaws.com.br/;
+  # Sem cabeçalhos CORS nas consultas: o painel está na mesma origem.
 
+  # Nome do fornecedor
+  location ~ "^/receita/v1/cnpj/(?<cnpj>[0-9]{14})$" {
+    limit_except GET { deny all; }
+    limit_req zone=consultas burst=10 nodelay;
+
+    rewrite ^ /v1/cnpj/$cnpj? break;
+    proxy_pass https://www.receitaws.com.br;
     proxy_ssl_server_name on;
-
+    # a sessão/senha do painel nunca segue para o serviço de terceiros
+    proxy_set_header Authorization "";
+    proxy_set_header Cookie "";
+    proxy_set_header Referer "";
     proxy_set_header Host www.receitaws.com.br;
+  }
 
-    add_header Access-Control-Allow-Origin * always;
+  # XML da nota (principal)
+  location = /api/nfe/ {
+    limit_except POST { deny all; }
+    limit_req zone=consultas burst=10 nodelay;
+    client_max_body_size 1k;
 
-    add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-
-    add_header Access-Control-Allow-Headers "*" always;
-
-    if ($request_method = OPTIONS) {
-
-        return 204;
-    }
-    }
-    
-  location /localapi/ {
-
-    proxy_pass http://203.0.113.10:8000/;
-
-
-    add_header Access-Control-Allow-Origin * always;
-
-    add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-
-    add_header Access-Control-Allow-Headers "*" always;
-
-    if ($request_method = OPTIONS) {
-
-        return 204;
-    }
-    }
-  location /danfe/ {
-
-    proxy_pass https://ws.meudanfe.com.br/;
-
-    add_header Access-Control-Allow-Origin * always;
-
-    add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-
-    add_header Access-Control-Allow-Headers "*" always;
-
-    if ($request_method = OPTIONS) {
-
-        return 204;
-    }
-    }
-    
-    location /api/nfe/ {
-    proxy_pass https://consultadanfe.com/api/v1/consulta;
+    rewrite ^ /api/v1/consulta? break; # descarta a query string
+    proxy_pass https://consultadanfe.com;
     proxy_ssl_server_name on;
+    # a sessão/senha do painel nunca segue para o serviço de terceiros
+    proxy_set_header Authorization "";
+    proxy_set_header Cookie "";
+    proxy_set_header Referer "";
 
     proxy_set_header Origin "";
     proxy_set_header Host consultadanfe.com;
@@ -101,48 +95,38 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Content-Type application/json;
+  }
 
-    # CORS para o navegador aceitar a resposta
-    add_header 'Access-Control-Allow-Origin' '*' always;
-    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-    add_header 'Access-Control-Allow-Headers' 'Content-Type' always;
+  # XML da nota (reserva, com API key)
+  location ~ "^/api/nfe/fallback/(?<chave>[0-9]{44})$" {
+    limit_except GET { deny all; }
+    limit_req zone=consultas burst=10 nodelay;
 
-    if ($request_method = OPTIONS) {
-        return 204;
-    }
-    }
-    
-    location /api/nfe/fallback/ {
-    # A barra no final é CRUCIAL para substituir o caminho corretamente
-    proxy_pass https://api.danferapida.com.br/documents/b2b/search/;
+    rewrite ^ /documents/b2b/search/$chave? break;
+    proxy_pass https://api.danferapida.com.br;
     proxy_ssl_server_name on;
+    # a sessão/senha do painel nunca segue para o serviço de terceiros
+    proxy_set_header Authorization "";
+    proxy_set_header Cookie "";
+    proxy_set_header Referer "";
 
     # Headers essenciais para evitar bloqueio do Cloudflare (WAF)
     proxy_set_header Host api.danferapida.com.br;
     proxy_set_header User-Agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     proxy_set_header Accept "application/json, text/plain, */*";
     proxy_set_header Accept-Language "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7";
-    
+
     # Headers de encaminhamento padrão
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
-    
-    # Injeção da API Key pelo próprio Nginx (evita CORS preflight no navegador)
-    # IMPORTANTE: defina a chave via ambiente/symlink fora do git. Exemplo:
+
+    # Injeção da API Key pelo próprio Nginx (a chave nunca chega ao navegador)
+    # IMPORTANTE: o arquivo fica fora do git. Exemplo:
     #   include /etc/nginx/secrets/danferapida.key.conf;   # proxy_set_header x-api-key "<SUA_API_KEY>";
-    # A chave real foi removida deste repositório por segurança.
     include /etc/nginx/secrets/danferapida.key.conf;
-
-    # CORS
-    add_header 'Access-Control-Allow-Origin' '*' always;
-    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-    add_header 'Access-Control-Allow-Headers' 'Content-Type, x-api-key' always;
-
-    if ($request_method = OPTIONS) {
-        return 204;
-    }
   }
+
   if (-f $request_filename) {
     break;
   }

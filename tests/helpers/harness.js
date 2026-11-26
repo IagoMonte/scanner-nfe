@@ -76,24 +76,52 @@ function createClock(win) {
   };
 }
 
+/** RTCPeerConnection mínimo: só o estado que o app observa. */
+function createPcStub() {
+  const ouvintes = [];
+  return {
+    connectionState: 'new',
+    addEventListener(event, cb) { if (event === 'connectionstatechange') ouvintes.push(cb); },
+    mudar(estado) { this.connectionState = estado; ouvintes.forEach((cb) => cb()); },
+  };
+}
+
 /** Stub do PeerJS: registra handlers e permite disparar open/data manualmente. */
 function createPeerStub() {
-  const state = { created: 0, peerIds: [], connectedTo: null, conn: null, sent: [], peerHandlers: {}, connHandlers: {} };
+  const state = { created: 0, peerIds: [], connectedTo: null, conn: null, sent: [], peerHandlers: {}, connHandlers: {}, reconnects: 0 };
+
+  function novoCanal() {
+    state.connHandlers = {};
+    const handlers = state.connHandlers;
+    return {
+      open: false,
+      on(event, cb) { (handlers[event] ||= []).push(cb); },
+      send(payload) { state.sent.push(payload); },
+      closed: false,
+      close() { this.closed = true; }, // canal que não abriu fecha sem emitir 'close'
+      peerConnection: createPcStub(),
+    };
+  }
 
   function PeerStub(peerId) {
     state.created += 1;
     state.peerIds.push(peerId);
+    state.peerHandlers = {}; // o peer anterior foi descartado: eventos vão só para este
+    const handlers = state.peerHandlers;
     const peer = {
-      on(event, cb) { (state.peerHandlers[event] ||= []).push(cb); },
+      open: true, // já registrado no servidor; testes mudam via state.instance
+      destroyed: false,
+      disconnected: false,
+      destroy() { peer.destroyed = true; },
+      reconnect() { state.reconnects += 1; },
+      on(event, cb) { (handlers[event] ||= []).push(cb); },
       connect(peerId) {
         state.connectedTo = peerId;
+        state.conn = novoCanal();
         return state.conn;
       },
     };
-    state.conn = {
-      on(event, cb) { (state.connHandlers[event] ||= []).push(cb); },
-      send(payload) { state.sent.push(payload); },
-    };
+    state.instance = peer;
     return peer;
   }
 
@@ -101,7 +129,10 @@ function createPeerStub() {
     Peer: PeerStub,
     state,
     emitPeer: (event, ...args) => (state.peerHandlers[event] || []).forEach((cb) => cb(...args)),
-    emitConn: (event, ...args) => (state.connHandlers[event] || []).forEach((cb) => cb(...args)),
+    emitConn: (event, ...args) => {
+      if (event === 'open' && state.conn) state.conn.open = true;
+      (state.connHandlers[event] || []).forEach((cb) => cb(...args));
+    },
   };
 }
 
@@ -320,10 +351,35 @@ function createPhoneApp() {
     camera,
     vibes,
     canvasState,
-    /** Simula o viewer conectando (conexão chega no peer do celular). */
-    connectViewer() {
+    /** Um painel pedindo conexão ao celular, com o canal que o PeerJS entregaria. */
+    novaConexao() {
       const sent = [];
-      peer.emitPeer('connection', { send: (payload) => sent.push(payload) });
+      const handlers = {};
+      const conn = {
+        open: false,
+        closed: false,
+        peerConnection: createPcStub(),
+        on(event, cb) { (handlers[event] ||= []).push(cb); },
+        send(payload) { sent.push(payload); },
+        // como no PeerJS: só emite 'close' se o canal chegou a abrir
+        close() {
+          const estavaAberta = conn.open;
+          conn.closed = true;
+          conn.open = false;
+          if (estavaAberta) conn.emit('close');
+        },
+        emit(event, ...args) {
+          if (event === 'open') conn.open = true;
+          (handlers[event] || []).forEach((cb) => cb(...args));
+        },
+      };
+      peer.emitPeer('connection', conn);
+      return { conn, sent };
+    },
+    /** Simula o viewer conectando (conexão chega no peer do celular e abre). */
+    connectViewer() {
+      const { conn, sent } = this.novaConexao();
+      conn.emit('open');
       return sent;
     },
     close() { win.close(); },

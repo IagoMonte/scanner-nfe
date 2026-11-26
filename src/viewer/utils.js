@@ -19,6 +19,18 @@ function validarCNPJ(cnpj) {
 }
 
 
+/** Todo texto de fora (nota, consulta, celular) passa por aqui antes de virar HTML. */
+function escaparHTML(valor) {
+  const entidades = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(valor ?? '').replace(/[&<>"']/g, (c) => entidades[c]);
+}
+
+
+function chaveValida(chave) {
+  return typeof chave === 'string' && /^\d{44}$/.test(chave);
+}
+
+
 function limparXML(valor = '') {
   return valor
     .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1')

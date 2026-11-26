@@ -41,7 +41,8 @@
 `src/viewer/` tem um módulo por responsabilidade (`config`, `dom`, `state`,
 `utils`, `api`, `domain`, `render`, `events`, `boot`); `src/phone/` separa marcação
 e script. `tools/build.js`, sem dependências, concatena tudo em `viewer.js` e
-`phone.html` e falha se um nome ou trecho exigido pela suíte sumir.
+`phone.html` e falha se um trecho usado no teste de mutação não aparecer
+exatamente uma vez.
 
 Os arquivos gerados são versionados: publicar é copiar arquivos estáticos.
 
@@ -51,7 +52,12 @@ Os arquivos gerados são versionados: publicar é copiar arquivos estáticos.
   pelo Nginx para evitar CORS e manter a chave de API fora do navegador. O preço é
   depender do broker público do PeerJS.
 - **PIN como PeerID.** Substituiu um identificador fixo, ao qual qualquer painel
-  podia se conectar. Se o PIN já estiver em uso, o celular gera outro.
+  podia se conectar. Se o PIN já estiver em uso, o celular gera outro, e enquanto
+  atende um painel recusa os demais.
+- **Entrada externa é só texto.** Dados da nota, da consulta e do canal P2P são
+  escapados antes de ir para a tela, e só chaves de 44 dígitos são processadas.
+- **Proxy restrito.** O Nginx de exemplo aceita apenas as rotas e formatos usados
+  pelo painel, sem CORS e com limite de taxa.
 - **Um só caminho para a chave.** A busca manual entra na mesma fila das leituras do
   celular, com a mesma deduplicação e os mesmos cartões.
 - **Ritmo controlado.** Uma nota por vez, com 1 s entre consultas para evitar 429,
@@ -64,6 +70,12 @@ Os arquivos gerados são versionados: publicar é copiar arquivos estáticos.
 ## Limitações conhecidas
 
 - O PIN de 6 dígitos evita conexões cruzadas, mas não é autenticação forte.
+- O proxy de exemplo não autentica usuários; o acesso deve ser restrito na
+  implantação.
+- A leitura e a busca aceitam só chaves numéricas: notas com CNPJ alfanumérico
+  não são reconhecidas.
+- A integridade é verificada nos scripts carregados pelas páginas; o Tesseract
+  baixa seus componentes internos de uma CDN sem essa checagem.
 - A chave é conferida só pelo CNPJ embutido, sem o dígito verificador.
 - Quatro bugs estão marcados com `test.skip`: índice órfão ao apagar nota, campos
   que perdem o valor no redesenho da tela, acentos quebrados no `atob` da API

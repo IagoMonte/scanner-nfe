@@ -8,8 +8,8 @@
   <title>OCR NF-e</title>
 
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" integrity="sha384-PMNj1TmCgXfW24/rfIyxYSAWwj2mffkMfguUWv08iNFcy0kTC0JN7E/tE+pJ7+fa" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
 
   <style>
     /* Mesmos tokens do viewer.html (ver visual.md) */
@@ -84,18 +84,17 @@
        largura continuam coincidindo com o recorte do OCR */
     video { width: 100%; min-height: 140px; max-height: 36dvh; object-fit: cover; background: #0b130f; }
     .overlay { position: absolute; inset: 0; pointer-events: none; }
+    /* tamanho definido pelo script (ajustarMira) = recorte do OCR; o contorno fica
+       por fora para não cobrir a área lida */
     .alvo {
-      position: absolute; left: 4%; width: 92%; top: calc(50% - 45px); height: 90px;
-      border: 2px solid rgba(34,197,94,.75); border-radius: 14px;
-      box-shadow: 0 0 0 100vmax rgba(5,8,6,.58), 0 0 24px rgba(34,197,94,.35);
-    }
-    .linha {
-      position: absolute; left: 10px; right: 10px; top: calc(50% - 1px); height: 2px;
-      background: var(--green); box-shadow: 0 0 12px rgba(34,197,94,.9);
+      position: absolute; left: 50%; top: 50%; width: 92%; height: 24px;
+      transform: translate(-50%, -50%);
+      border-radius: 4px; outline: 2px solid var(--green);
+      box-shadow: 0 0 0 100vmax rgba(5,8,6,.58);
       animation: pulso 1.6s infinite ease-in-out;
     }
-    @keyframes pulso { 50% { opacity: .3; } }
-    @media (prefers-reduced-motion: reduce) { .linha { animation: none; } }
+    @keyframes pulso { 50% { outline-color: rgba(34,197,94,.45); } }
+    @media (prefers-reduced-motion: reduce) { .alvo { animation: none; } }
 
     /* ---- recorte e última leitura ---- */
     .leitura { padding: 14px; display: grid; gap: 10px; }
@@ -125,6 +124,21 @@
     }
     #captureBtn:hover { filter: brightness(1.08); }
     #captureBtn:active { transform: scale(.99); }
+
+    /* telas baixas: compacta o topo para a câmera caber acima do botão */
+    @media (max-height: 700px) {
+      .app { gap: 8px; }
+      .hero, .pin-panel { padding: 10px; gap: 8px; }
+      .logo { width: 36px; height: 36px; }
+      #pin { font-size: 1.6rem; padding-top: 2px; padding-bottom: 2px; }
+      .pin-panel p { display: none; }
+      .acao { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+      #captureBtn { padding: 12px; }
+    }
+    /* celular deitado: câmera primeiro, visível sem rolar */
+    @media (max-height: 500px) {
+      .camera { order: -1; }
+    }
   </style>
 </head>
 
@@ -135,7 +149,7 @@
         <div class="logo">NF</div>
         <div>
           <h1>Scanner NF-e</h1>
-          <p>Alinhe a chave de acesso na linha verde.</p>
+          <p>Enquadre a chave de acesso na faixa verde.</p>
         </div>
       </div>
       <div class="status-pill" data-tipo="wait" role="status">
@@ -152,7 +166,7 @@
     <div class="panel camera">
       <video id="video" autoplay playsinline muted></video>
       <div class="overlay">
-        <div class="alvo"><div class="linha"></div></div>
+        <div id="alvo" class="alvo"></div>
       </div>
     </div>
 

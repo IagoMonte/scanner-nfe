@@ -16,8 +16,11 @@ import sys
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 
+# lista explícita: "node --test tests/" não acha os arquivos em todas as versões do Node
+TESTES_JS = sorted(str(p.relative_to(RAIZ)) for p in (RAIZ / "tests").glob("*.test.js"))
+
 COMANDOS = {
-    "js": ["node", "--test", "tests/"],
+    "js": ["node", "--test", *TESTES_JS],
     "py": [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
 }
 
@@ -38,6 +41,13 @@ def main() -> int:
     arquivos = {nome for nome, _, _, _ in MUTACOES}
     originais = {nome: (RAIZ / nome).read_text(encoding="utf-8") for nome in arquivos}
     problemas = 0
+
+    # sem mutação a suíte precisa passar; senão toda "detecção" seria falsa
+    for suite, comando in COMANDOS.items():
+        base = subprocess.run(comando, cwd=RAIZ, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if base.returncode != 0:
+            print(f"ABORTADO: a suíte '{suite}' já falha sem mutação (rode npm install e npm test)")
+            return 1
 
     try:
         for arquivo, trecho, quebrado, suite in MUTACOES:

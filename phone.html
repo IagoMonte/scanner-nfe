@@ -8,8 +8,8 @@
   <title>OCR NF-e</title>
 
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" integrity="sha384-PMNj1TmCgXfW24/rfIyxYSAWwj2mffkMfguUWv08iNFcy0kTC0JN7E/tE+pJ7+fa" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
 
   <style>
     /* Mesmos tokens do viewer.html (ver visual.md) */
@@ -84,18 +84,17 @@
        largura continuam coincidindo com o recorte do OCR */
     video { width: 100%; min-height: 140px; max-height: 36dvh; object-fit: cover; background: #0b130f; }
     .overlay { position: absolute; inset: 0; pointer-events: none; }
+    /* tamanho definido pelo script (ajustarMira) = recorte do OCR; o contorno fica
+       por fora para não cobrir a área lida */
     .alvo {
-      position: absolute; left: 4%; width: 92%; top: calc(50% - 45px); height: 90px;
-      border: 2px solid rgba(34,197,94,.75); border-radius: 14px;
-      box-shadow: 0 0 0 100vmax rgba(5,8,6,.58), 0 0 24px rgba(34,197,94,.35);
-    }
-    .linha {
-      position: absolute; left: 10px; right: 10px; top: calc(50% - 1px); height: 2px;
-      background: var(--green); box-shadow: 0 0 12px rgba(34,197,94,.9);
+      position: absolute; left: 50%; top: 50%; width: 92%; height: 24px;
+      transform: translate(-50%, -50%);
+      border-radius: 4px; outline: 2px solid var(--green);
+      box-shadow: 0 0 0 100vmax rgba(5,8,6,.58);
       animation: pulso 1.6s infinite ease-in-out;
     }
-    @keyframes pulso { 50% { opacity: .3; } }
-    @media (prefers-reduced-motion: reduce) { .linha { animation: none; } }
+    @keyframes pulso { 50% { outline-color: rgba(34,197,94,.45); } }
+    @media (prefers-reduced-motion: reduce) { .alvo { animation: none; } }
 
     /* ---- recorte e última leitura ---- */
     .leitura { padding: 14px; display: grid; gap: 10px; }
@@ -125,6 +124,21 @@
     }
     #captureBtn:hover { filter: brightness(1.08); }
     #captureBtn:active { transform: scale(.99); }
+
+    /* telas baixas: compacta o topo para a câmera caber acima do botão */
+    @media (max-height: 700px) {
+      .app { gap: 8px; }
+      .hero, .pin-panel { padding: 10px; gap: 8px; }
+      .logo { width: 36px; height: 36px; }
+      #pin { font-size: 1.6rem; padding-top: 2px; padding-bottom: 2px; }
+      .pin-panel p { display: none; }
+      .acao { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+      #captureBtn { padding: 12px; }
+    }
+    /* celular deitado: câmera primeiro, visível sem rolar */
+    @media (max-height: 500px) {
+      .camera { order: -1; }
+    }
   </style>
 </head>
 
@@ -135,7 +149,7 @@
         <div class="logo">NF</div>
         <div>
           <h1>Scanner NF-e</h1>
-          <p>Alinhe a chave de acesso na linha verde.</p>
+          <p>Enquadre a chave de acesso na faixa verde.</p>
         </div>
       </div>
       <div class="status-pill" data-tipo="wait" role="status">
@@ -152,7 +166,7 @@
     <div class="panel camera">
       <video id="video" autoplay playsinline muted></video>
       <div class="overlay">
-        <div class="alvo"><div class="linha"></div></div>
+        <div id="alvo" class="alvo"></div>
       </div>
     </div>
 
@@ -192,6 +206,14 @@ const captureBtn = document.getElementById("captureBtn");
 const lastKey = document.getElementById("last-key");
 const preview = document.getElementById("preview");
 const pinEl = document.getElementById("pin");
+const alvo = document.getElementById("alvo");
+
+// Faixa do vídeo entregue ao OCR; a área verde é desenhada a partir dela.
+const RECORTE_LARGURA = 0.92; // fração da largura do vídeo
+const RECORTE_ALTURA = 90;    // pixels do vídeo
+
+const PRAZO_ABERTURA_MS = 15000; // painel que não abre o canal nesse prazo é descartado
+const RECONEXAO_MS = 3000;       // espera antes de voltar ao servidor de sinalização
 
 // Texto + tom do selo (ok | wait | err), as mesmas cores de estado do viewer.
 function definirStatus(texto, tipo) {
@@ -201,31 +223,72 @@ function definirStatus(texto, tipo) {
 
 // ===== CONEXÃO =====
 // O PIN gerado aqui É o PeerID da sessão do celular: quem digitar esse número
-// no viewer conecta; quem não souber, não alcança este peer.
+// no viewer conecta. O celular atende um painel por vez. O PIN evita conexões
+// cruzadas, mas não é autenticação forte.
 
 let conn = null;
 let peer = null;
 
 function novoPIN() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    const [sorteio] = crypto.getRandomValues(new Uint32Array(1));
+    return String(100000 + (sorteio % 900000));
 }
 
 function iniciarPeer(pin) {
-    peer = new Peer(pin);
+    const atual = new Peer(pin);
+    peer = atual;
 
-    peer.on("connection", connection => {
-        conn = connection;
-        definirStatus("viewer conectado", "ok");
+    peer.on("connection", atenderViewer);
+    peer.on("open", () => {
+        if (status.textContent === "erro de conexão") definirStatus("conexão restabelecida", "ok");
     });
+    peer.on("disconnected", () => setTimeout(() => {
+        if (atual === peer && !atual.destroyed && atual.disconnected) atual.reconnect();
+    }, RECONEXAO_MS));
 
     // PIN já em uso por outro peer no servidor: gera outro e a tela atualiza.
     peer.on("error", err => {
         if (err && err.type === "unavailable-id") {
             iniciarPeer(novoPIN());
+            return;
         }
+        // com um painel já ligado (P2P), a queda do servidor não interrompe o uso
+        if (!conn?.open) definirStatus("erro de conexão", "err");
     });
 
     pinEl.innerText = pin;
+}
+
+function atenderViewer(connection) {
+    // Já há um painel: o recém-chegado é desligado assim que o canal abre.
+    if (conn) {
+        connection.on("open", () => connection.close());
+        return;
+    }
+
+    conn = connection;
+    definirStatus("conectando viewer...", "wait");
+
+    // Painel morto nem sempre emite "close": prazo de abertura e estado do WebRTC
+    // também liberam o celular para o próximo.
+    const liberar = () => {
+        if (conn !== connection) return;
+        conn = null;
+        clearTimeout(prazo);
+        definirStatus("viewer desconectado", "err");
+        connection.close();
+    };
+    const prazo = setTimeout(liberar, PRAZO_ABERTURA_MS);
+
+    connection.on("open", () => {
+        clearTimeout(prazo);
+        definirStatus("viewer conectado", "ok");
+    });
+    connection.on("close", liberar);
+    connection.on("error", liberar);
+    connection.peerConnection?.addEventListener("connectionstatechange", () => {
+        if (connection.peerConnection?.connectionState === "failed") liberar();
+    });
 }
 
 iniciarPeer(novoPIN());
@@ -245,7 +308,7 @@ async function startCamera() {
         });
 
         video.srcObject = stream;
-        definirStatus("câmera pronta", "ok");
+        definirStatus(conn?.open ? "viewer conectado" : "câmera pronta", "ok");
     } catch (err) {
         console.error(err);
         definirStatus("erro câmera", "err");
@@ -258,10 +321,10 @@ function captureFrame() {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
 
-    const cropWidth = vw * 0.92;
-    const cropHeight = 90;
+    const cropWidth = vw * RECORTE_LARGURA;
+    const cropHeight = RECORTE_ALTURA;
     const cropX = (vw - cropWidth) / 2;
-    const cropY = (vh / 2) - 45;
+    const cropY = (vh / 2) - (cropHeight / 2);
 
     canvas.width = cropWidth;
     canvas.height = cropHeight;
@@ -280,10 +343,21 @@ function preprocess() {
     preview.src = canvas.toDataURL("image/png");
 }
 
+// Desenha a área verde com o tamanho que o recorte ocupa na tela. O vídeo usa
+// object-fit: cover, então a escala é a maior das duas razões tela/vídeo.
+function ajustarMira() {
+    const { videoWidth, videoHeight, clientWidth, clientHeight } = video;
+    if (!videoWidth || !videoHeight || !clientWidth) return;
+
+    const escala = Math.max(clientWidth / videoWidth, clientHeight / videoHeight);
+    alvo.style.width = `${videoWidth * RECORTE_LARGURA * escala}px`;
+    alvo.style.height = `${RECORTE_ALTURA * escala}px`;
+}
+
 // ===== OCR =====
 
 async function processOCR() {
-    if (!conn) {
+    if (!conn?.open) {
         alert("viewer não conectado");
         return;
     }
@@ -315,6 +389,14 @@ async function processOCR() {
             const key = match[0];
 
             console.log("CHAVE:", key);
+            lastKey.innerText = key;
+
+            // o painel pode ter caído enquanto o OCR rodava
+            if (!conn?.open) {
+                definirStatus("chave não enviada", "err");
+                navigator.vibrate?.(100);
+                return;
+            }
 
             conn.send({
                 type: "nfe",
@@ -322,7 +404,6 @@ async function processOCR() {
                 image: canvas.toDataURL("image/jpeg", 0.7)
             });
 
-            lastKey.innerText = key;
             definirStatus("chave enviada", "ok");
             navigator.vibrate?.(300);
         } else {
@@ -339,6 +420,9 @@ async function processOCR() {
 
 // ===== BOOT =====
 captureBtn.onclick = processOCR;
+video.addEventListener("loadedmetadata", ajustarMira);
+video.addEventListener("resize", ajustarMira); // câmera mudou de orientação
+window.addEventListener("resize", ajustarMira);
 startCamera();
 </script>
 

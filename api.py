@@ -8,7 +8,7 @@ Exemplo:
     python api.py 35260503157268000200550010001330001808239656
 
 Requisitos:
-    pip install undetected-chromedriver selenium
+    pip install -r requirements.txt
     Chrome instalado (o undetected_chromedriver gerencia o driver).
 
 Estrutura interna em módulos:
@@ -19,6 +19,7 @@ Estrutura interna em módulos:
     main                  — sequência completa
 """
 import json
+import os
 import sys
 import time
 
@@ -42,7 +43,8 @@ def configurar_driver() -> "uc.Chrome":
     options.add_argument("--window-size=1920,1080")
     options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
-    driver = uc.Chrome(options=options, version_main=148)
+    # sem CHROME_MAJOR, baixa o driver mais novo; informe a versão se o Chrome for anterior
+    driver = uc.Chrome(options=options, version_main=int(os.getenv("CHROME_MAJOR", "0")) or None)
     driver.execute_cdp_cmd("Network.enable", {})
     return driver
 

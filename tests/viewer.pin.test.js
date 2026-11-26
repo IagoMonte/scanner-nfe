@@ -95,3 +95,16 @@ test('PIN errado no celular (peer-unavailable): modal volta com aviso para retry
   assert.match(app.$('#pin-error').innerText, /PIN|celular/i, 'erro fala do PIN/celular');
   app.close();
 });
+
+test('clicar antes de o painel chegar ao servidor avisa em vez de travar "conectando"', () => {
+  const app = createViewerApp();
+  app.peer.state.instance.open = false;
+
+  app.type(app.$('#pin-input'), '987654');
+  app.click(app.$('#pin-btn'));
+
+  assert.equal(app.peer.state.connectedTo, null, 'a tentativa se perderia no caminho');
+  assert.equal(app.$('#pin-modal').hidden, false, 'o modal fica para tentar de novo');
+  assert.match(app.$('#pin-error').innerText, /servidor/i);
+  app.close();
+});
